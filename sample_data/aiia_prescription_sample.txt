@@ -1,0 +1,28 @@
+==============================================================
+ALL INDIA INSTITUTE OF AYURVEDA (AIIA), NEW DELHI
+DEPARTMENT OF KAYACHIKITSA (INTERNAL MEDICINE)
+OPD CASE RECORD / PRESCRIPTION
+==============================================================
+Patient Name: Rameshwar Sharma           Age: 56 Y / Male
+ABHA ID: 91-9876543210@abdm             Date: 2026-08-15
+Department: Kayachikitsa OPD             Consultant: Dr. Vaidya
+
+CLINICAL DIAGNOSIS:
+1. Janu Sandhigata Vata (Osteoarthritis of Knee Joints)
+2. Amlapitta (Hyperacidity & Dyspepsia)
+
+PRESCRIPTION (Rx):
+1. Tab. Yograj Guggulu 500mg -------- 2 tabs Twice Daily (After meals) x 30 days
+2. Syp. Dashamoolarishta ------------ 15ml with 15ml warm water Twice Daily x 30 days
+3. Cap. Pantoprazole 40mg ---------- 1 cap Once Daily (Morning before food) x 14 days
+4. Tab. Paracetamol 650mg ---------- 1 tab SOS (If severe joint pain) x 5 days
+
+LABORATORY INVESTIGATION FINDINGS:
+- Serum Uric Acid: 7.8 mg/dL [Reference: 3.5 - 7.0 mg/dL] (ELEVATED)
+- HbA1c: 7.4 % [Reference: 4.0 - 5.6 %] (ELEVATED)
+- Hemoglobin: 11.2 g/dL [Reference: 12.0 - 16.0 g/dL] (LOW)
+
+DIETARY & LIFESTYLE ADVICE (Ahara-Vihara):
+- Pathya (Recommended): Warm water, light easily digestible food (Laghu Ahara), gentle knee mobilization.
+- Apathya (Avoid): Cold/sour food, heavy curd at night, prolonged standing.
+==============================================================

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediKiosk — AI Patient Intake & AYUSH Case-Taking Platform</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ayush: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d'
+                        },
+                        hospital: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans Devanagari', sans-serif;
+        }
+        .touch-btn:active {
+            transform: scale(0.97);
+        }
+        .pulse-red {
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+                    <i data-lucide="cross" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-xl font-bold tracking-tight text-slate-900">MediKiosk</h1>
+                        <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">SIH26047</span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Ministry of Ayush / AIIA Clinical Intake</p>
+                </div>
+            </div>
+
+            <!-- Portal Switcher & Language Controls -->
+            <div class="flex items-center space-x-3">
+                <!-- Mode Switcher -->
+                <div class="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200">
+                    <button id="nav-kiosk-btn" onclick="switchPortal('kiosk')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-emerald-700 shadow-sm flex items-center space-x-1.5">
+                        <i data-lucide="tablet" class="w-3.5 h-3.5"></i>
+                        <span>Patient Kiosk</span>
+                    </button>
+                    <button id="nav-doctor-btn" onclick="switchPortal('doctor')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-600 hover:text-slate-900 flex items-center space-x-1.5">
+                        <i data-lucide="stethoscope" class="w-3.5 h-3.5"></i>
+                        <span>Doctor Portal</span>
+                        <span id="queue-badge-count" class="bg-rose-500 text-white px-1.5 py-0.2 rounded-full text-[10px] ml-1 hidden">0</span>
+                    </button>
+                </div>
+
+                <!-- Language Toggle -->
+                <button id="lang-toggle-btn" onclick="toggleLanguage()" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 shadow-sm flex items-center space-x-1.5">
+                    <i data-lucide="languages" class="w-4 h-4 text-emerald-600"></i>
+                    <span id="current-lang-label">English</span>
+                </button>
+
+                <!-- Audio Guidance Toggle -->
+                <button id="audio-guidance-btn" onclick="toggleAudioGuidance()" class="p-2 rounded-lg border border-slate-300 text-slate-600 hover:text-emerald-700 bg-white hover:bg-slate-50 shadow-sm" title="Audio Guidance Voice Prompts">
+                    <i id="audio-icon" data-lucide="volume-2" class="w-4 h-4 text-emerald-600"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Application Container -->
+    <main id="app-root" class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+        <!-- Injected dynamically by app.js -->
+    </main>
+
+    <!-- Emergency Red-Flag Modal Alert -->
+    <div id="red-flag-modal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border-4 border-rose-600 animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center space-x-4 mb-4">
+                <div class="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0">
+                    <i data-lucide="alert-triangle" class="w-8 h-8 pulse-red"></i>
+                </div>
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">Emergency Red Flag Detected</span>
+                    <h3 id="red-flag-title" class="text-xl font-bold text-slate-900 mt-1">Immediate Clinical Attention Required</h3>
+                </div>
+            </div>
+            <div class="bg-rose-50 rounded-xl p-4 border border-rose-200 mb-6 text-sm text-rose-900 space-y-2">
+                <p id="red-flag-instructions" class="font-medium">Directing to Emergency / Triage Room 1 immediately.</p>
+                <p class="text-xs text-rose-700">The kiosk intake has been automatically escalated to the hospital emergency triage nursing officer.</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="dismissRedFlagAndCallStaff()" class="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-rose-600/30">
+                    <i data-lucide="bell-ring" class="w-4 h-4"></i>
+                    <span>Alert Duty Nurse & Proceed</span>
+                </button>
+                <button onclick="closeRedFlagModal()" class="py-3 px-4 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100">
+                    Dismiss
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABDM FHIR JSON Bundle Inspector Modal -->
+    <div id="fhir-modal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 text-slate-100 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-700 flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="file-code" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">ABDM FHIR R4 Bundle Preview</h3>
+                        <p class="text-xs text-slate-400">Standardized Interoperable Electronic Health Record (NRCES Profile)</p>
+                    </div>
+                </div>
+                <button onclick="closeFhirModal()" class="text-slate-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-auto bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400">
+                <pre id="fhir-json-content">Loading FHIR Bundle...</pre>
+            </div>
+            <div class="pt-4 flex justify-between items-center border-t border-slate-800 mt-4">
+                <span class="text-xs text-slate-400">Compliant with Ayushman Bharat Digital Mission (ABDM)</span>
+                <button onclick="copyFhirJson()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs flex items-center space-x-2">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copy JSON</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frontend Application Logic -->
+    <script src="/static/app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
