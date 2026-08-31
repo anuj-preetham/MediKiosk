@@ -30,12 +30,9 @@ class ClinicalSummaryResponse(BaseModel):
     drug_allergies: List[str] = []
     family_history: List[str] = []
     
-    # 3. AYUSH Pariksha Summary
-    prakriti_dominant: Optional[str] = None
-    prakriti_breakdown: Dict[str, Any] = {}
-    agni_status: Optional[str] = None
-    koshtha_status: Optional[str] = None
-    ahara_vihara_notes: Dict[str, Any] = {}
+    # 3. Personal History & Review of Systems
+    personal_history: Dict[str, Any] = {}
+    review_of_systems: Dict[str, Any] = {}
     
     # 4. Document Intelligence & Timeline
     abnormal_lab_highlights: List[Dict[str, Any]] = []
@@ -48,11 +45,10 @@ class ClinicalSummaryResponse(BaseModel):
 class PhysicianReviewRequest(BaseModel):
     doctor_id: str
     doctor_name: str
-    department: Optional[str] = "General OPD"
+    department: Optional[str] = "General Medicine / OPD"
     verified_chief_complaint: Optional[str] = None
     verified_hpi: Optional[str] = None
     verified_past_history: Optional[List[str]] = None
-    verified_ayush_notes: Optional[str] = None
     physician_clinical_notes: Optional[str] = None
     prescribed_plan: Optional[str] = None
     is_verified: bool = True

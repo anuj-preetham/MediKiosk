@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 class FHIRService:
     """
     ABDM & FHIR R4 Interoperability Generator
-    Constructs FHIR R4 Document Bundles compliant with Ayushman Bharat Digital Mission (ABDM).
+    Constructs standardized FHIR R4 Document Bundles compliant with Ayushman Bharat Digital Mission (ABDM).
     """
 
     def generate_opd_clinical_bundle(
@@ -13,8 +13,7 @@ class FHIRService:
         session_id: str,
         patient_data: Dict[str, Any],
         clinical_history: Optional[Dict[str, Any]],
-        ayush_assessment: Optional[Dict[str, Any]],
-        doctor_review: Optional[Dict[str, Any]]
+        doctor_review: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         bundle_id = str(uuid.uuid4())
         composition_id = str(uuid.uuid4())
@@ -38,7 +37,7 @@ class FHIRService:
             }
         }
 
-        # Composition (Clinical Document Header)
+        # Composition (Standardized Clinical OPD Consultation Document)
         composition_resource = {
             "fullUrl": f"urn:uuid:{composition_id}",
             "resource": {
@@ -53,11 +52,11 @@ class FHIRService:
                             "display": "Clinical consultation report / OPD Case Sheet"
                         }
                     ],
-                    "text": "MediKiosk Clinical Intake & AYUSH History Summary"
+                    "text": "MediKiosk Clinical Intake & History Summary"
                 },
                 "subject": {"reference": f"urn:uuid:{patient_id}"},
                 "date": timestamp_str,
-                "title": "Patient Clinical Intake Record",
+                "title": "Outpatient Clinical Intake Record",
                 "section": [
                     {
                         "title": "Chief Complaint & History of Present Illness (SOCRATES)",
@@ -70,13 +69,13 @@ class FHIRService:
                         }
                     },
                     {
-                        "title": "AYUSH Dashavidha Assessment",
+                        "title": "Past Medical & Drug History",
                         "code": {
-                            "coding": [{"system": "https://ayush.gov.in/fhir/cs/pariksha", "code": "AYUSH-PARIKSHA", "display": "Ayurveda Dashavidha Assessment"}]
+                            "coding": [{"system": "http://loinc.org", "code": "11348-0", "display": "History of past illness"}]
                         },
                         "text": {
                             "status": "generated",
-                            "div": f"<div><p><b>Prakriti:</b> {ayush_assessment.get('prakriti_primary', 'N/A') if ayush_assessment else 'N/A'}</p><p><b>Agni:</b> {ayush_assessment.get('agni_status', 'N/A') if ayush_assessment else 'N/A'}</p></div>"
+                            "div": f"<div><p><b>Recorded Past Conditions & Prior Medications</b></p></div>"
                         }
                     }
                 ]

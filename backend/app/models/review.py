@@ -12,7 +12,7 @@ class PhysicianReview(Base):
     
     doctor_id = Column(String(50), nullable=False)
     doctor_name = Column(String(150), nullable=False)
-    department = Column(String(100), default="General OPD / Kayachikitsa")
+    department = Column(String(100), default="General OPD / Internal Medicine")
     
     # Review Status
     is_verified = Column(Boolean, default=False)
@@ -23,7 +23,6 @@ class PhysicianReview(Base):
     verified_chief_complaint = Column(Text, nullable=True)
     verified_hpi = Column(Text, nullable=True)
     verified_past_history = Column(JSON, default=list)
-    verified_ayush_notes = Column(Text, nullable=True)
     
     physician_clinical_notes = Column(Text, nullable=True)
     prescribed_plan = Column(Text, nullable=True)

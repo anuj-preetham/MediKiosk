@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, Base, engine
 from app.models import (
     Patient, IntakeSession, ClinicalHistory,
-    AyushAssessment, MedicalDocument, PhysicianReview
+    MedicalDocument, PhysicianReview
 )
 
 def seed_database():
@@ -13,13 +13,13 @@ def seed_database():
 
     # Check if data already exists
     if db.query(Patient).count() > 0:
-        print("Database already contains seed records. Skipping seeding.")
         db.close()
         return
 
     print("Seeding demo patients, intake sessions, and documents...")
+    now = datetime.now(timezone.utc)
 
-    # Case 1: Routine Ayurvedic Joint Pain & Dyspepsia
+    # Case 1: Routine OPD - Osteoarthritis & Acid Reflux
     p1 = Patient(
         id=str(uuid.uuid4()),
         abha_id="91-9876543210@abdm",
@@ -30,7 +30,7 @@ def seed_database():
         preferred_language="hi",
         consent_granted=True,
         consent_audio_verified=True,
-        consent_timestamp=datetime.utcnow() - timedelta(hours=2)
+        consent_timestamp=now - timedelta(hours=2)
     )
     db.add(p1)
     db.flush()
@@ -41,7 +41,7 @@ def seed_database():
         status="completed",
         triage_level="routine",
         language="hi",
-        created_at=datetime.utcnow() - timedelta(minutes=45)
+        created_at=now - timedelta(minutes=45)
     )
     db.add(s1)
     db.flush()
@@ -49,60 +49,54 @@ def seed_database():
     h1 = ClinicalHistory(
         id=str(uuid.uuid4()),
         session_id=s1.id,
-        chief_complaint="घुटनों में तेज दर्द व अकड़न और खट्टी डकारें (Bilateral Knee Pain & Acidity)",
+        chief_complaint="घुटनों में तेज दर्द व अकड़न और खट्टी डकारें (Bilateral Knee Pain & Gastroesophageal Reflux)",
         socrates_hpi={
-            "site": "Both knee joints & upper abdomen",
+            "site": "Both knee joints & upper epigastrium",
             "onset": "Gradual worsening over 6 months",
             "character": "Dull throbbing ache in knees; burning in chest after meals",
             "radiation": "Pain radiates down both calves",
             "associated": "Morning stiffness for 30 minutes, mild knee crepitus, flatulence",
             "timing": "Knee pain worse in cold weather; acidity worse after dinner",
-            "exacerbating_relieving": "Relieved by hot water fermentation and rest; aggravated by climbing stairs",
+            "exacerbating_relieving": "Relieved by rest and warm compression; aggravated by climbing stairs",
             "severity": "6/10 (Moderate)"
         },
-        past_medical_history=["Hypertension (3 years on Amlodipine)", "Mild Hyperlipidemia"],
+        past_medical_history=["Essential Hypertension (3 years on Amlodipine)", "Mild Hyperlipidemia"],
         past_surgical_history=[],
         current_medications=[
-            {"name": "Tab. Amlodipine 5mg", "dosage": "1 OD", "frequency": "Morning"}
+            {"name": "Tab. Amlodipine 5mg", "dosage": "1 tab OD", "frequency": "Morning"}
         ],
         drug_allergies=["Sulfa drugs (Skin pruritus)"],
-        family_history=["Mother had osteoarthritis"]
-    )
-    db.add(h1)
-
-    a1 = AyushAssessment(
-        id=str(uuid.uuid4()),
-        session_id=s1.id,
-        prakriti_primary="Vata-Pitta (Dvidoshaja)",
-        prakriti_scores={"Vata": 50, "Pitta": 35, "Kapha": 15},
-        agni_status="Vishama Agni (Irregular Appetite & Digestion)",
-        koshtha_status="Krura Koshtha (Constipation tendency)",
-        samhanana="Madhyama (Medium Build)",
-        ahara_shakti="Madhyama (Moderate)",
-        vyayama_shakti="Avara (Poor tolerance due to joint pain)",
-        ahara_vihara={
-            "diet": "Vegetarian",
-            "habit": "Irregular meal timings, high intake of curd at night",
-            "sleep": "6 hours, disturbed due to knee discomfort"
+        family_history=["Mother had osteoarthritis, Father had hypertension"],
+        personal_history={
+            "diet": "Vegetarian, high tea intake",
+            "physical_activity": "Sedentary desk job",
+            "smoking": "Non-smoker",
+            "alcohol": "Non-drinker",
+            "sleep": "6 hours, occasionally disturbed"
+        },
+        review_of_systems={
+            "musculoskeletal": "Bilateral knee joint stiffness and pain",
+            "gastrointestinal": "Epigastric burning, acid reflux",
+            "cardiovascular": "No palpitations or chest heaviness"
         }
     )
-    db.add(a1)
+    db.add(h1)
 
     d1 = MedicalDocument(
         id=str(uuid.uuid4()),
         session_id=s1.id,
-        file_name="prescription_aiia_previous.jpg",
+        file_name="prescription_district_hospital.jpg",
         file_path="uploads/demo_prescription.jpg",
         document_type="prescription",
         document_date=date.today() - timedelta(days=60),
-        doctor_or_lab_name="AIIA Kayachikitsa OPD",
-        ocr_raw_text="AIIA OPD Rx: Tab. Yograj Guggulu 2 BD, Syp. Dashamoolarishta 15ml BD, Cap. Pantoprazole 40mg OD",
+        doctor_or_lab_name="District Civil Hospital Medicine OPD",
+        ocr_raw_text="District Hospital OPD Rx: Tab. Pantoprazole 40mg OD, Tab. Paracetamol 650mg SOS, Tab. Calcium + Vit D3 OD",
         extracted_entities={
-            "diagnoses": ["Janu Sandhigata Vata (Osteoarthritis)", "Amlapitta (Hyperacidity)"],
+            "diagnoses": ["Bilateral Knee Osteoarthritis", "Gastroesophageal Reflux Disease (GERD)"],
             "medicines": [
-                {"name": "Tab. Yograj Guggulu 500mg", "dosage": "2 tabs", "frequency": "Twice Daily", "duration": "1 month"},
-                {"name": "Syp. Dashamoolarishta", "dosage": "15ml", "frequency": "Twice Daily after meals", "duration": "1 month"},
-                {"name": "Cap. Pantoprazole 40mg", "dosage": "1 cap", "frequency": "Once Daily (Morning AC)", "duration": "14 days"}
+                {"name": "Tab. Pantoprazole 40mg", "dosage": "1 tab", "frequency": "Once Daily (Morning AC)", "duration": "14 days"},
+                {"name": "Tab. Paracetamol 650mg", "dosage": "1 tab", "frequency": "SOS (For severe knee pain)", "duration": "5 days"},
+                {"name": "Tab. Calcium 500mg + Vitamin D3", "dosage": "1 tab", "frequency": "Once Daily (After food)", "duration": "1 month"}
             ],
             "investigations": [
                 {"test": "Serum Uric Acid", "value": "7.8", "unit": "mg/dL", "ref_range": "3.5 - 7.0", "is_abnormal": True},
@@ -116,7 +110,7 @@ def seed_database():
     )
     db.add(d1)
 
-    # Case 2: Red Flag Emergency Triage
+    # Case 2: Red Flag Emergency Triage Case
     p2 = Patient(
         id=str(uuid.uuid4()),
         abha_id="91-9123456789@abdm",
@@ -127,7 +121,7 @@ def seed_database():
         preferred_language="en",
         consent_granted=True,
         consent_audio_verified=True,
-        consent_timestamp=datetime.utcnow() - timedelta(minutes=15)
+        consent_timestamp=now - timedelta(minutes=15)
     )
     db.add(p2)
     db.flush()
@@ -138,10 +132,10 @@ def seed_database():
         status="triaged_red_flag",
         triage_level="emergency_red_flag",
         red_flag_detected="Suspected Acute Coronary Syndrome / Severe Cardiac Event",
-        red_flag_timestamp=datetime.utcnow() - timedelta(minutes=10),
+        red_flag_timestamp=now - timedelta(minutes=10),
         red_flag_action_taken="IMMEDIATE ATTENTION: Direct patient to Emergency / Triage Room 1 for immediate ECG, vitals, and physician evaluation.",
         language="en",
-        created_at=datetime.utcnow() - timedelta(minutes=15)
+        created_at=now - timedelta(minutes=15)
     )
     db.add(s2)
     db.flush()
@@ -161,8 +155,9 @@ def seed_database():
             "severity": "9/10 (Emergency)"
         },
         past_medical_history=["Type 2 Diabetes Mellitus (10 years)", "Dyslipidemia"],
-        current_medications=[{"name": "Tab. Metformin 1000mg", "dosage": "1 BD", "frequency": "Twice Daily"}],
-        drug_allergies=[]
+        current_medications=[{"name": "Tab. Metformin 1000mg", "dosage": "1 tab BD", "frequency": "Twice Daily"}],
+        drug_allergies=[],
+        personal_history={"diet": "Diabetic diet", "smoking": "No", "alcohol": "No"}
     )
     db.add(h2)
 

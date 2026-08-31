@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
@@ -37,7 +37,6 @@ def get_opd_patient_queue(db: Session = Depends(get_db)):
             "red_flag_detected": s.red_flag_detected,
             "status": s.status,
             "chief_complaint": s.clinical_history.chief_complaint if s.clinical_history else "Intake in progress",
-            "prakriti": s.ayush_assessment.prakriti_primary if s.ayush_assessment else "Pending",
             "documents_count": len(s.documents),
             "created_at": s.created_at.isoformat() if s.created_at else None,
             "is_reviewed": bool(s.physician_review and s.physician_review.is_verified)
@@ -55,7 +54,6 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
 
     patient = session.patient
     history = session.clinical_history
-    ayush = session.ayush_assessment
     docs = session.documents
     review = session.physician_review
 
@@ -83,7 +81,7 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
         timeline.append(TimelineEvent(
             date=d_date_str,
             event_type=d.document_type,
-            title=f"{d.document_type.replace('_', ' ').title()} ({d.doctor_or_lab_name or 'OPD'})",
+            title=f"{d.document_type.replace('_', ' ').title()} ({d.doctor_or_lab_name or 'District Hospital'})",
             description=f"Extracted Diagnoses: {diag_str or 'General Clinical'}. Prescribed {meds_count} medications.",
             source_document_id=d.id,
             highlights=[f"{m.get('name', '')} ({m.get('dosage', '')})" for m in (d.extracted_entities.get("medicines", []) if d.extracted_entities else [])[:2]]
@@ -112,16 +110,13 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
         red_flag_alert=session.red_flag_detected,
         chief_complaint=history.chief_complaint if history else None,
         socrates_hpi=history.socrates_hpi if history else {},
-        past_medical_history=history.past_medical_history if history else ["Hypertension (Known history from past records)"],
+        past_medical_history=history.past_medical_history if history else ["Hypertension (3 years)"],
         past_surgical_history=history.past_surgical_history if history else [],
         current_medications=extracted_meds or (history.current_medications if history else []),
         drug_allergies=history.drug_allergies if history else ["No known drug allergies reported"],
         family_history=history.family_history if history else [],
-        prakriti_dominant=ayush.prakriti_primary if ayush else "Not assessed",
-        prakriti_breakdown=ayush.prakriti_scores if ayush else {},
-        agni_status=ayush.agni_status if ayush else "Not assessed",
-        koshtha_status=ayush.koshtha_status if ayush else "Not assessed",
-        ahara_vihara_notes=ayush.ahara_vihara if ayush else {},
+        personal_history=history.personal_history if history else {"diet": "Regular", "sleep": "Normal"},
+        review_of_systems=history.review_of_systems if history else {},
         abnormal_lab_highlights=abnormal_highlights,
         chronological_timeline=timeline,
         is_verified=bool(review and review.is_verified),
@@ -148,7 +143,7 @@ def verify_physician_review(session_id: str, payload: PhysicianReviewRequest, db
 
     review.doctor_id = payload.doctor_id
     review.doctor_name = payload.doctor_name
-    review.department = payload.department or "General OPD / Kayachikitsa"
+    review.department = payload.department or "General Medicine / OPD"
     review.is_verified = payload.is_verified
     review.is_rejected = payload.is_rejected
     review.rejection_reason = payload.rejection_reason
@@ -156,7 +151,7 @@ def verify_physician_review(session_id: str, payload: PhysicianReviewRequest, db
     review.verified_hpi = payload.verified_hpi
     review.physician_clinical_notes = payload.physician_clinical_notes
     review.prescribed_plan = payload.prescribed_plan
-    review.reviewed_at = datetime.utcnow()
+    review.reviewed_at = datetime.now(timezone.utc)
 
     # Generate ABDM FHIR bundle
     patient_dict = {
@@ -167,13 +162,11 @@ def verify_physician_review(session_id: str, payload: PhysicianReviewRequest, db
         "phone_number": session.patient.phone_number if session.patient else ""
     }
     history_dict = {"chief_complaint": payload.verified_chief_complaint or (session.clinical_history.chief_complaint if session.clinical_history else "")}
-    ayush_dict = {"prakriti_primary": session.ayush_assessment.prakriti_primary if session.ayush_assessment else "", "agni_status": session.ayush_assessment.agni_status if session.ayush_assessment else ""}
 
     bundle = fhir_service.generate_opd_clinical_bundle(
         session_id=session.id,
         patient_data=patient_dict,
         clinical_history=history_dict,
-        ayush_assessment=ayush_dict,
         doctor_review={"doctor_name": payload.doctor_name}
     )
     review.fhir_bundle_json = bundle

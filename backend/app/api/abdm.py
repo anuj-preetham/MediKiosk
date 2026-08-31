@@ -27,13 +27,11 @@ def get_fhir_bundle(session_id: str, db: Session = Depends(get_db)):
         "phone_number": session.patient.phone_number if session.patient else ""
     }
     history_dict = {"chief_complaint": session.clinical_history.chief_complaint if session.clinical_history else ""}
-    ayush_dict = {"prakriti_primary": session.ayush_assessment.prakriti_primary if session.ayush_assessment else "", "agni_status": session.ayush_assessment.agni_status if session.ayush_assessment else ""}
 
     bundle = fhir_service.generate_opd_clinical_bundle(
         session_id=session.id,
         patient_data=patient_dict,
         clinical_history=history_dict,
-        ayush_assessment=ayush_dict,
         doctor_review=None
     )
     return bundle

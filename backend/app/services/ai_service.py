@@ -276,14 +276,14 @@ class AIService:
             options = question_info["options"]
         else:
             if lang == "hi":
-                reply_text = "धन्यवाद। आपकी मुख्य समस्या का विवरण दर्ज कर लिया गया है। अब हम कुछ आयुर्वेदिक प्रकृति एवं खान-पान के प्रश्न पूछेंगे।"
-                audio_text = "धन्यवाद। अब हम कुछ आयुर्वेदिक प्रकृति के प्रश्न पूछेंगे।"
+                reply_text = "धन्यवाद। आपकी मुख्य समस्या और लक्षणों का विवरण दर्ज कर लिया गया है। अब आप अपनी जीवनशैली का विवरण दे सकते हैं या पुराने पर्चे/रिपोर्ट स्कैन कर सकते हैं।"
+                audio_text = "धन्यवाद। आपकी मुख्य समस्या का विवरण दर्ज हो गया है।"
             else:
-                reply_text = "Thank you. Your clinical history has been recorded. Next, we will proceed to AYUSH constitutional (Prakriti & Agni) assessment."
-                audio_text = "Thank you. Next, we will proceed to AYUSH assessment."
+                reply_text = "Thank you. Your clinical symptoms and history of present illness have been recorded. You can now record your medical/lifestyle history or upload prior medical records."
+                audio_text = "Thank you. Your clinical history has been recorded."
             options = [
-                {"label": "Continue to AYUSH Assessment" if lang == "en" else "आयुर्वेदिक मूल्यांकन शुरू करें", "value": "start_ayush", "icon": "sparkles"},
-                {"label": "Upload Past Medical Records" if lang == "en" else "पुराने पर्चे/रिपोर्ट स्कैन करें", "value": "upload_docs", "icon": "file-text"}
+                {"label": "Review Lifestyle & Medical History" if lang == "en" else "जीवनशैली एवं पूर्व इतिहास जोड़ें", "value": "start_lifestyle", "icon": "user-check"},
+                {"label": "Upload Past Prescriptions / Reports" if lang == "en" else "पुराने पर्चे/रिपोर्ट स्कैन करें", "value": "upload_docs", "icon": "file-text"}
             ]
 
         return {

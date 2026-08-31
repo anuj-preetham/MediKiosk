@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
@@ -8,7 +8,6 @@ from app.database import get_db
 from app.models.patient import Patient
 from app.models.session import IntakeSession, SessionStatus, TriageLevel
 from app.models.clinical_history import ClinicalHistory
-from app.models.ayush import AyushAssessment
 from app.models.review import PhysicianReview
 from app.schemas.session_schema import (
     PatientCreate, PatientResponse,
@@ -23,6 +22,7 @@ def start_intake_session(payload: SessionCreate, db: Session = Depends(get_db)):
     """
     Initialize a new patient intake session with consent and preferred language.
     """
+    now = datetime.now(timezone.utc)
     patient = None
     if payload.patient_id:
         patient = db.query(Patient).filter(Patient.id == payload.patient_id).first()
@@ -40,7 +40,7 @@ def start_intake_session(payload: SessionCreate, db: Session = Depends(get_db)):
             preferred_language=payload.language or p_data.preferred_language,
             consent_granted=p_data.consent_granted,
             consent_audio_verified=p_data.consent_audio_verified,
-            consent_timestamp=datetime.utcnow()
+            consent_timestamp=now
         )
         db.add(patient)
         db.commit()
@@ -49,14 +49,14 @@ def start_intake_session(payload: SessionCreate, db: Session = Depends(get_db)):
         # Default walk-in anonymous patient profile for quick kiosk start
         patient = Patient(
             id=str(uuid.uuid4()),
-            abha_id=f"91-9876543210@abdm",
+            abha_id="91-9876543210@abdm",
             full_name="OPD Walk-in Patient",
             age=35,
             gender="Male",
             preferred_language=payload.language,
             consent_granted=True,
             consent_audio_verified=True,
-            consent_timestamp=datetime.utcnow()
+            consent_timestamp=now
         )
         db.add(patient)
         db.commit()
@@ -82,17 +82,11 @@ def start_intake_session(payload: SessionCreate, db: Session = Depends(get_db)):
         past_surgical_history=[],
         current_medications=[],
         drug_allergies=[],
-        family_history=[]
+        family_history=[],
+        personal_history={"diet": "Normal balanced", "smoking": "No", "alcohol": "No", "sleep": "7-8 hours"},
+        review_of_systems={}
     )
     db.add(clinical_history)
-
-    ayush_assessment = AyushAssessment(
-        id=str(uuid.uuid4()),
-        session_id=session.id,
-        prakriti_scores={},
-        ahara_vihara={}
-    )
-    db.add(ayush_assessment)
 
     db.commit()
     db.refresh(session)
@@ -118,16 +112,12 @@ def get_session_details(session_id: str, db: Session = Depends(get_db)):
             "chief_complaint": session.clinical_history.chief_complaint if session.clinical_history else None,
             "socrates_hpi": session.clinical_history.socrates_hpi if session.clinical_history else {},
             "past_medical_history": session.clinical_history.past_medical_history if session.clinical_history else [],
+            "past_surgical_history": session.clinical_history.past_surgical_history if session.clinical_history else [],
             "current_medications": session.clinical_history.current_medications if session.clinical_history else [],
-            "drug_allergies": session.clinical_history.drug_allergies if session.clinical_history else []
+            "drug_allergies": session.clinical_history.drug_allergies if session.clinical_history else [],
+            "family_history": session.clinical_history.family_history if session.clinical_history else [],
+            "personal_history": session.clinical_history.personal_history if session.clinical_history else {}
         } if session.clinical_history else None,
-        "ayush_assessment": {
-            "prakriti_primary": session.ayush_assessment.prakriti_primary if session.ayush_assessment else None,
-            "prakriti_scores": session.ayush_assessment.prakriti_scores if session.ayush_assessment else {},
-            "agni_status": session.ayush_assessment.agni_status if session.ayush_assessment else None,
-            "koshtha_status": session.ayush_assessment.koshtha_status if session.ayush_assessment else None,
-            "ahara_vihara": session.ayush_assessment.ahara_vihara if session.ayush_assessment else {}
-        } if session.ayush_assessment else None,
         "documents": [
             {
                 "id": doc.id,

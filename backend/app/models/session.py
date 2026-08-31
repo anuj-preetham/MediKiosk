@@ -40,6 +40,5 @@ class IntakeSession(Base):
     # Relationships
     patient = relationship("Patient", back_populates="sessions")
     clinical_history = relationship("ClinicalHistory", back_populates="session", uselist=False, cascade="all, delete-orphan")
-    ayush_assessment = relationship("AyushAssessment", back_populates="session", uselist=False, cascade="all, delete-orphan")
     documents = relationship("MedicalDocument", back_populates="session", cascade="all, delete-orphan")
     physician_review = relationship("PhysicianReview", back_populates="session", uselist=False, cascade="all, delete-orphan")

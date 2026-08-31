@@ -3,8 +3,8 @@ from typing import Optional, List, Dict, Any
 
 class ChatMessageRequest(BaseModel):
     message: str
-    mode: str = "general" # 'general' | 'socrates' | 'ayush'
-    step: Optional[str] = None # 'chief_complaint' | 'site' | 'onset' | 'character' | 'radiation' | 'associated' | 'timing' | 'exacerbating' | 'severity' | 'ayush_prakriti' | 'ayush_agni'
+    mode: str = "general" # 'general' | 'socrates' | 'lifestyle'
+    step: Optional[str] = None # 'chief_complaint' | 'site' | 'onset' | 'character' | 'radiation' | 'associated' | 'timing' | 'exacerbating' | 'severity'
 
 class QuickOption(BaseModel):
     label: str
@@ -26,7 +26,6 @@ class ChatMessageResponse(BaseModel):
     
     # Extracted data updates
     extracted_socrates: Optional[Dict[str, Any]] = None
-    extracted_ayush: Optional[Dict[str, Any]] = None
     progress_percentage: int = 0
 
 class SOCRATESUpdateRequest(BaseModel):

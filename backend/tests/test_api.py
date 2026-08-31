@@ -20,7 +20,7 @@ def test_health_check():
     response = client.get("/api/info")
     assert response.status_code == 200
     data = response.json()
-    assert data["problem_statement"] == "SIH26047 - Patient Case-Taking Software"
+    assert "MediKiosk" in data["app"]
 
 def test_start_session_and_socrates():
     # 1. Start Session
@@ -68,24 +68,6 @@ def test_red_flag_detection():
     assert data["is_red_flag"] == True
     assert "Suspected Acute Coronary Syndrome" in data["red_flag_alert_title"]
 
-def test_ayush_assessment():
-    res = client.post("/api/sessions/start", json={"language": "en"})
-    session_id = res.json()["id"]
-
-    # Submit AYUSH answers
-    res_ayush = client.post(f"/api/ayush/{session_id}/submit", json={
-        "answers": {
-            "prakriti_body_frame": "vata",
-            "prakriti_weather": "vata",
-            "agni_digestion": "vishama_agni",
-            "koshtha_bowel": "krura"
-        }
-    })
-    assert res_ayush.status_code == 200
-    data = res_ayush.json()
-    assert "Vata" in data["prakriti_primary"]
-    assert "Vishama Agni" in data["agni_status"]
-
 def test_doctor_queue_and_summary():
     res = client.get("/api/doctor/queue")
     assert res.status_code == 200
@@ -98,6 +80,7 @@ def test_doctor_queue_and_summary():
     summary = res_summary.json()
     assert "chief_complaint" in summary
     assert "chronological_timeline" in summary
+    assert "abnormal_lab_highlights" in summary
 
 def test_fhir_bundle_export():
     res = client.get("/api/doctor/queue")
