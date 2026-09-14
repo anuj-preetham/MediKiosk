@@ -214,3 +214,110 @@ def test_document_ocr_confidence_metadata():
     assert "snomed_ct" in extracted["medicines"][0]
     assert "ai_ocr_metadata" in extracted
 
+def test_custom_patient_registration_and_lifestyle_update():
+    # 1. Start intake session with dynamic user-entered profile
+    res = client.post("/api/sessions/start", json={
+        "language": "hi",
+        "patient_data": {
+            "full_name": "Devendra Joshi",
+            "age": 54,
+            "gender": "Male",
+            "phone_number": "9123498765",
+            "abha_id": "devendra.joshi@abdm",
+            "preferred_language": "hi",
+            "consent_granted": True,
+            "consent_audio_verified": True
+        }
+    })
+    assert res.status_code == 201
+    session_data = res.json()
+    session_id = session_data["id"]
+    patient = session_data["patient"]
+    assert patient["full_name"] == "Devendra Joshi"
+    assert patient["age"] == 54
+    assert patient["gender"] == "Male"
+    assert patient["abha_id"] == "devendra.joshi@abdm"
+
+    # 2. Update lifestyle and chronic history
+    res_life = client.post(f"/api/sessions/{session_id}/lifestyle", json={
+        "past_medical_history": ["Diabetes (Type 2)", "Hypertension (BP)", "Gout / Hyperuricemia"],
+        "drug_allergies": ["Sulfa drugs", "Aspirin"],
+        "current_medications": [{"name": "Tab Telmisartan 40mg", "dosage": "40mg", "frequency": "1 OD Morning"}],
+        "personal_history": {
+            "diet": "Low Sodium / Diabetic",
+            "smoking": "Non-smoker",
+            "alcohol": "No",
+            "sleep": "7-8 hours"
+        }
+    })
+    assert res_life.status_code == 200
+    assert res_life.json()["status"] == "SUCCESS"
+
+    # 3. Verify session details contain persisted lifestyle data
+    res_detail = client.get(f"/api/sessions/{session_id}")
+    assert res_detail.status_code == 200
+    clin_hist = res_detail.json()["clinical_history"]
+    assert "Gout / Hyperuricemia" in clin_hist["past_medical_history"]
+    assert "Sulfa drugs" in clin_hist["drug_allergies"]
+    assert len(clin_hist["current_medications"]) == 1
+
+def test_manual_document_entry_and_abnormal_lab_screening():
+    # Start session
+    res = client.post("/api/sessions/start", json={"language": "en"})
+    session_id = res.json()["id"]
+
+    # Submit manual document with custom medicines and abnormal lab values
+    res_manual = client.post("/api/documents/manual-entry", json={
+        "session_id": session_id,
+        "document_title": "City Diagnostic Biochemistry Panel",
+        "document_type": "lab_report",
+        "doctor_or_lab_name": "City Diagnostics Center",
+        "medicines": [
+            {"name": "Cap Pantoprazole 40mg", "dosage": "40mg", "frequency": "1 OD", "snomed_ct": "410942007"}
+        ],
+        "investigations": [
+            {
+                "test": "HbA1c (Glycated Hemoglobin)",
+                "value": "8.4",
+                "unit": "%",
+                "ref_range": "4.0 - 5.6 %",
+                "is_abnormal": True
+            },
+            {
+                "test": "Serum Uric Acid",
+                "value": "8.2",
+                "unit": "mg/dL",
+                "ref_range": "3.5 - 7.2 mg/dL",
+                "is_abnormal": True
+            },
+            {
+                "test": "Serum Creatinine",
+                "value": "0.9",
+                "unit": "mg/dL",
+                "ref_range": "0.7 - 1.2 mg/dL",
+                "is_abnormal": False
+            }
+        ],
+        "diagnoses": ["Hyperglycemia", "Hyperuricemia"]
+    })
+    assert res_manual.status_code == 200
+    doc_data = res_manual.json()
+    assert doc_data["file_name"] == "City Diagnostic Biochemistry Panel"
+    assert doc_data["document_type"] == "lab_report"
+    
+    # Check abnormal flags computed
+    flags = doc_data["abnormal_flags"]
+    assert len(flags) >= 2
+    flag_params = [f["parameter"] for f in flags]
+    assert "HbA1c (Glycated Hemoglobin)" in flag_params
+    assert "Serum Uric Acid" in flag_params
+
+    # Verify summary reflects the abnormal lab findings
+    res_summary = client.get(f"/api/doctor/sessions/{session_id}/summary")
+    assert res_summary.status_code == 200
+    highlights = res_summary.json()["abnormal_lab_highlights"]
+    highlight_params = [h["parameter"] for h in highlights]
+    assert any("HbA1c" in p for p in highlight_params)
+    assert any("Uric Acid" in p for p in highlight_params)
+
+

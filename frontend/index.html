@@ -143,8 +143,8 @@
             <p class="text-xs text-slate-500 mt-1">Open your ABHA App, Aarogya Setu, or Paytm Health to share demographic profile instantly.</p>
             
             <!-- QR Code Simulation Box -->
-            <div class="my-6 p-5 bg-slate-50 rounded-2xl border border-slate-200 inline-block">
-                <div class="w-44 h-44 bg-white p-2 border-2 border-slate-800 rounded-xl flex flex-col items-center justify-center relative shadow-inner">
+            <div class="my-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block">
+                <div class="w-36 h-36 bg-white p-2 border-2 border-slate-800 rounded-xl flex flex-col items-center justify-center relative shadow-inner mx-auto">
                     <!-- Stylized SVG QR -->
                     <svg viewBox="0 0 100 100" class="w-full h-full text-slate-900">
                         <rect width="100" height="100" fill="#ffffff"/>
@@ -172,18 +172,126 @@
                         <rect x="35" y="70" width="30" height="8" fill="#0f172a"/>
                         <rect x="70" y="70" width="25" height="25" fill="#2563eb"/>
                     </svg>
-                    <span class="absolute bottom-1 text-[9px] font-mono text-slate-500 font-bold">OPD-COUNTER-01</span>
+                    <span class="absolute bottom-1 text-[8px] font-mono text-slate-500 font-bold">OPD-COUNTER-01</span>
+                </div>
+            </div>
+
+            <!-- Editable ABHA Profile Fields -->
+            <div class="text-left space-y-2.5 mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
+                <span class="font-bold text-slate-700 block text-[11px] uppercase tracking-wider">Simulated ABHA App Profile Payload</span>
+                <div>
+                    <label class="text-[10px] font-semibold text-slate-500">Patient Full Name</label>
+                    <input id="modal-abha-name" type="text" value="Rameshwar Sharma" class="w-full p-2 rounded-lg border border-slate-300 font-medium">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500">Gender</label>
+                        <select id="modal-abha-gender" class="w-full p-2 rounded-lg border border-slate-300 font-medium">
+                            <option value="Male" selected>Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500">Birth Year / Age</label>
+                        <input id="modal-abha-year" type="number" value="1968" placeholder="1978" class="w-full p-2 rounded-lg border border-slate-300 font-medium">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500">Phone Number</label>
+                        <input id="modal-abha-phone" type="tel" value="9876543210" class="w-full p-2 rounded-lg border border-slate-300 font-medium">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500">ABHA Address</label>
+                        <input id="modal-abha-address" type="text" value="rameshwar.sharma@abdm" class="w-full p-2 rounded-lg border border-slate-300 font-medium">
+                    </div>
                 </div>
             </div>
 
             <!-- Simulated Mobile App Response Button -->
             <button onclick="simulateScanAndShareApp()" class="touch-btn w-full py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/25">
                 <i data-lucide="smartphone" class="w-4 h-4"></i>
-                <span>Simulate ABHA App "Share Profile" Handshake</span>
+                <span>Simulate ABHA "Share Profile" Handshake</span>
             </button>
             <button onclick="closeScanShareModal()" class="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-800 p-2">
                 Cancel
             </button>
+        </div>
+    </div>
+
+    <!-- Custom Document Entry Modal -->
+    <div id="custom-doc-modal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 text-left animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center">
+                        <i data-lucide="file-plus" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Custom Medical Record Entry</h3>
+                        <p class="text-xs text-slate-500">Add custom prescriptions or laboratory blood report values</p>
+                    </div>
+                </div>
+                <button onclick="closeCustomDocModal()" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Document Type</label>
+                    <select id="custom-doc-type" class="w-full p-2.5 rounded-xl border border-slate-300 font-medium">
+                        <option value="prescription">Prescription / Medication Record</option>
+                        <option value="lab_report">Biochemistry / Blood Lab Report</option>
+                        <option value="discharge_summary">Discharge Summary</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Record Title / Doctor / Hospital Name</label>
+                    <input id="custom-doc-title" type="text" placeholder="e.g. District Hospital Prescription / Apex Diagnostics" value="District General Hospital OPD" class="w-full p-2.5 rounded-xl border border-slate-300 font-medium">
+                </div>
+
+                <!-- Custom Medications Section -->
+                <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <span class="font-bold text-slate-800 block text-xs">1. Medications (Comma-separated or format: Name, Dose, Frequency)</span>
+                    <textarea id="custom-doc-meds" rows="2" placeholder="e.g. Tab Pantoprazole 40mg (OD Morning), Tab Paracetamol 650mg (SOS)" class="w-full p-2.5 rounded-xl border border-slate-300 font-medium">Cap. Pantoprazole 40mg (1 cap OD), Tab. Paracetamol 650mg (1 tab SOS)</textarea>
+                </div>
+
+                <!-- Custom Lab Values Section -->
+                <div class="p-3.5 bg-amber-50/70 rounded-2xl border border-amber-200 space-y-2.5">
+                    <span class="font-bold text-amber-900 block text-xs">2. Lab Test Values (Auto-screened for abnormal physiological ranges)</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[11px] font-semibold text-amber-900">HbA1c (%)</label>
+                            <input id="custom-doc-hba1c" type="text" value="7.2" placeholder="e.g. 7.2" class="w-full p-2 rounded-lg border border-amber-300 bg-white font-medium">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-amber-900">Fasting Blood Sugar (mg/dL)</label>
+                            <input id="custom-doc-fbs" type="text" value="135" placeholder="e.g. 135" class="w-full p-2 rounded-lg border border-amber-300 bg-white font-medium">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-amber-900">Serum Uric Acid (mg/dL)</label>
+                            <input id="custom-doc-uric" type="text" value="7.8" placeholder="e.g. 7.8" class="w-full p-2 rounded-lg border border-amber-300 bg-white font-medium">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-amber-900">Serum Creatinine (mg/dL)</label>
+                            <input id="custom-doc-creatinine" type="text" value="1.3" placeholder="e.g. 1.3" class="w-full p-2 rounded-lg border border-amber-300 bg-white font-medium">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex space-x-3">
+                <button onclick="submitCustomDocEntry()" class="touch-btn flex-1 py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-teal-600/20">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Save Custom Medical Record</span>
+                </button>
+                <button onclick="closeCustomDocModal()" class="py-3 px-4 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50">
+                    Cancel
+                </button>
+            </div>
         </div>
     </div>
 

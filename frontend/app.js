@@ -406,22 +406,28 @@ function closeScanShareModal() {
 }
 
 async function simulateScanAndShareApp() {
+    const name = document.getElementById('modal-abha-name')?.value.trim() || "Rameshwar Sharma";
+    const gender = document.getElementById('modal-abha-gender')?.value || "Male";
+    const yearOfBirth = parseInt(document.getElementById('modal-abha-year')?.value) || 1968;
+    const phone = document.getElementById('modal-abha-phone')?.value.trim() || "9876543210";
+    const abhaAddress = document.getElementById('modal-abha-address')?.value.trim() || "rameshwar.sharma@abdm";
+
     closeScanShareModal();
     try {
         const res = await fetch(`${API_BASE}/abdm/scan-and-share/process`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                abha_number: "91-9876-5432-1098",
-                abha_address: "rameshwar.sharma@abdm",
-                name: "Rameshwar Sharma",
-                gender: "Male",
-                year_of_birth: 1968,
-                phone_number: "+91 98765 43210"
+                abha_number: `91-${phone}`,
+                abha_address: abhaAddress,
+                name: name,
+                gender: gender,
+                year_of_birth: yearOfBirth,
+                phone_number: phone
             })
         });
         const data = await res.json();
-        await startSession(data.full_name, data.age, data.gender, data.phone_number);
+        await startSession(data.full_name, data.age, data.gender, data.phone_number, abhaAddress);
     } catch (err) {
         console.error("Scan & share failed:", err);
     }
@@ -440,8 +446,31 @@ async function pushToHospitalHis(sessionId) {
     }
 }
 
+function fillPresetPatient(name, age, gender, phone, abha) {
+    const nameEl = document.getElementById('reg-patient-name');
+    const ageEl = document.getElementById('reg-patient-age');
+    const genderEl = document.getElementById('reg-patient-gender');
+    const phoneEl = document.getElementById('reg-patient-phone');
+    const abhaEl = document.getElementById('reg-patient-abha');
+
+    if (nameEl) nameEl.value = name;
+    if (ageEl) ageEl.value = age;
+    if (genderEl) genderEl.value = gender;
+    if (phoneEl) phoneEl.value = phone;
+    if (abhaEl) abhaEl.value = abha;
+}
+
+function startSessionFromForm() {
+    const name = document.getElementById('reg-patient-name')?.value.trim() || "OPD Walk-in Patient";
+    const age = parseInt(document.getElementById('reg-patient-age')?.value) || 45;
+    const gender = document.getElementById('reg-patient-gender')?.value || "Male";
+    const phone = document.getElementById('reg-patient-phone')?.value.trim() || "9876543210";
+    const abha = document.getElementById('reg-patient-abha')?.value.trim() || `91-${phone}@abdm`;
+    startSession(name, age, gender, phone, abha);
+}
+
 // API Calls
-async function startSession(fullName = "OPD Walk-in Patient", age = 45, gender = "Male", phone = "9876543210") {
+async function startSession(fullName = "OPD Walk-in Patient", age = 45, gender = "Male", phone = "9876543210", abhaId = null) {
     try {
         const res = await fetch(`${API_BASE}/sessions/start`, {
             method: 'POST',
@@ -453,6 +482,7 @@ async function startSession(fullName = "OPD Walk-in Patient", age = 45, gender =
                     age: parseInt(age) || 45,
                     gender: gender,
                     phone_number: phone,
+                    abha_id: abhaId || `91-${phone}@abdm`,
                     preferred_language: state.language,
                     consent_granted: true,
                     consent_audio_verified: true
@@ -527,11 +557,78 @@ async function sendChatMessage(message, overrideStep = null, bodyLocation = null
     }
 }
 
-function submitLifestyleData() {
-    const allergyVal = document.getElementById('allergy-input')?.value;
-    if (allergyVal) {
-        state.lifestyleAnswers.allergies = allergyVal.split(',').map(s => s.trim());
+function addCustomCondition() {
+    const input = document.getElementById('custom-condition-input');
+    const val = input?.value.trim();
+    if (val && !state.lifestyleAnswers.pastConditions.includes(val)) {
+        state.lifestyleAnswers.pastConditions.push(val);
+        input.value = '';
+        renderCustomConditionsTags();
     }
+}
+
+function removeCustomCondition(cond) {
+    state.lifestyleAnswers.pastConditions = state.lifestyleAnswers.pastConditions.filter(c => c !== cond);
+    renderCustomConditionsTags();
+}
+
+function renderCustomConditionsTags() {
+    const container = document.getElementById('custom-conditions-list');
+    if (!container) return;
+    const customList = state.lifestyleAnswers.pastConditions.filter(c => 
+        !['Diabetes (Type 2)', 'Hypertension (BP)', 'Thyroid Disorder', 'Asthma / Allergy'].includes(c)
+    );
+    container.innerHTML = customList.map(c => `
+        <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 text-xs font-semibold">
+            ${c}
+            <button type="button" onclick="removeCustomCondition('${c.replace(/'/g, "\\'")}')" class="ml-1.5 text-blue-600 hover:text-blue-900 font-bold">×</button>
+        </span>
+    `).join('');
+}
+
+async function submitLifestyleData() {
+    const allergyVal = document.getElementById('allergy-input')?.value;
+    const allergies = allergyVal ? allergyVal.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    const medsVal = document.getElementById('meds-input')?.value;
+    const currentMeds = medsVal ? medsVal.split(',').map(s => {
+        const trimmed = s.trim();
+        return { name: trimmed, dosage: "Regular", frequency: "Daily" };
+    }).filter(m => m.name.length > 0) : [];
+
+    const smokingVal = document.getElementById('lifestyle-smoking')?.value || "Non-smoker";
+    const dietVal = document.getElementById('lifestyle-diet')?.value || "Vegetarian";
+    const alcoholVal = document.getElementById('lifestyle-alcohol')?.value || "No";
+
+    state.lifestyleAnswers.allergies = allergies;
+    state.lifestyleAnswers.currentMeds = currentMeds;
+    state.lifestyleAnswers.smoking = smokingVal;
+    state.lifestyleAnswers.diet = dietVal;
+    state.lifestyleAnswers.alcohol = alcoholVal;
+
+    // Persist to backend session
+    if (state.currentSessionId) {
+        try {
+            await fetch(`${API_BASE}/sessions/${state.currentSessionId}/lifestyle`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    past_medical_history: state.lifestyleAnswers.pastConditions,
+                    drug_allergies: allergies,
+                    current_medications: currentMeds,
+                    personal_history: {
+                        diet: dietVal,
+                        smoking: smokingVal,
+                        alcohol: alcoholVal,
+                        sleep: "7-8 hours"
+                    }
+                })
+            });
+        } catch (e) {
+            console.error("Failed to save lifestyle data:", e);
+        }
+    }
+
     state.kioskStep = 'document';
     render();
     speakPrompt(state.language === 'hi' ? 'पूर्व इतिहास दर्ज हो गया है। अब पुराने पर्चे या रिपोर्ट स्कैन करें।' : 'Lifestyle and medical history recorded. Now please scan or upload prior medical records.');
@@ -728,23 +825,23 @@ function render() {
 function renderConsentView(t) {
     return `
     <div class="max-w-2xl mx-auto w-full bg-white rounded-3xl p-8 sm:p-10 shadow-xl border border-slate-100 animate-in fade-in duration-300">
-        <div class="text-center mb-8">
-            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
                 <i data-lucide="heart-pulse" class="w-8 h-8"></i>
             </div>
             <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">${t.welcomeTitle}</h2>
             <p class="text-slate-500 font-medium mt-1">${t.welcomeSubtitle}</p>
         </div>
 
-        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-6 mb-8">
+        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-5 mb-6">
             <div class="flex items-start space-x-3.5">
                 <div class="p-2 rounded-xl bg-blue-600 text-white flex-shrink-0 mt-0.5">
                     <i data-lucide="shield-check" class="w-5 h-5"></i>
                 </div>
                 <div>
                     <h3 class="text-base font-bold text-blue-950">${t.consentTitle}</h3>
-                    <p class="text-sm text-blue-800/90 mt-1 leading-relaxed">${t.consentDesc}</p>
-                    <div class="flex items-center space-x-4 mt-3 text-xs font-semibold text-blue-700">
+                    <p class="text-xs text-blue-800/90 mt-1 leading-relaxed">${t.consentDesc}</p>
+                    <div class="flex items-center space-x-4 mt-2.5 text-[11px] font-semibold text-blue-700">
                         <span class="flex items-center"><i data-lucide="lock" class="w-3.5 h-3.5 mr-1"></i> DPDP Act 2023 Compliant</span>
                         <span class="flex items-center"><i data-lucide="file-check" class="w-3.5 h-3.5 mr-1"></i> ABDM / ABHA Ready</span>
                     </div>
@@ -752,23 +849,69 @@ function renderConsentView(t) {
             </div>
         </div>
 
-        <div class="space-y-3">
-            <!-- 1. Scan & Share -->
-            <button onclick="openScanShareModal()" class="touch-btn w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base flex items-center justify-center space-x-3 shadow-lg shadow-blue-600/25 transition-all">
-                <i data-lucide="qr-code" class="w-5 h-5"></i>
-                <span>${t.scanShareBtn}</span>
-            </button>
+        <!-- 1-Click Persona Pre-fill Chips for Testing / Fast Evaluation -->
+        <div class="mb-5">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Quick Pre-fill Test Profiles (Or Type Custom Below)</label>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="fillPresetPatient('Rohan Mehta', 45, 'Male', '9876543210', 'rohan.mehta@abdm')" class="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-xs font-semibold text-slate-700 hover:text-blue-900 transition-all flex items-center space-x-1">
+                    <span>👤 Rohan Mehta (45/M)</span>
+                </button>
+                <button type="button" onclick="fillPresetPatient('Kavita Devi', 38, 'Female', '9812345678', 'kavita.devi@abdm')" class="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-xs font-semibold text-slate-700 hover:text-blue-900 transition-all flex items-center space-x-1">
+                    <span>👤 Kavita Devi (38/F)</span>
+                </button>
+                <button type="button" onclick="fillPresetPatient('Sunita Devi', 62, 'Female', '9123456789', 'sunita.devi@abdm')" class="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-semibold text-rose-800 transition-all flex items-center space-x-1">
+                    <span>🔴 Sunita Devi (62/F - Red Flag)</span>
+                </button>
+            </div>
+        </div>
 
-            <!-- 2. Manual Start -->
-            <button onclick="startSession()" class="touch-btn w-full py-3.5 px-6 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm flex items-center justify-center space-x-2 transition-all">
-                <i data-lucide="sparkles" class="w-4 h-4 text-blue-600"></i>
+        <!-- Interactive Patient Demographic Input Form -->
+        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 mb-6 space-y-3.5 text-left text-xs">
+            <span class="font-bold text-slate-800 block text-xs uppercase tracking-wider">Patient Registration & Identity</span>
+            
+            <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Full Name (रोगी का पूरा नाम)</label>
+                <input id="reg-patient-name" type="text" value="Rameshwar Sharma" placeholder="e.g. Rameshwar Sharma" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Age (उम्र)</label>
+                    <input id="reg-patient-age" type="number" value="48" placeholder="e.g. 48" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Gender (लिंग)</label>
+                    <select id="reg-patient-gender" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Male" selected>Male (पुरुष)</option>
+                        <option value="Female">Female (महिला)</option>
+                        <option value="Other">Other (अन्य)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Phone Number (मोबाइल नंबर)</label>
+                    <input id="reg-patient-phone" type="tel" value="9876543210" placeholder="10-digit mobile" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">ABHA Address / ID (आभा आईडी)</label>
+                    <input id="reg-patient-abha" type="text" value="91-9876543210@abdm" placeholder="e.g. name@abdm" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <!-- 1. Start with Entered Details -->
+            <button onclick="startSessionFromForm()" class="touch-btn w-full py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/25 transition-all">
+                <i data-lucide="sparkles" class="w-5 h-5"></i>
                 <span>${t.startBtn}</span>
             </button>
 
-            <!-- 3. Emergency Demo Case -->
-            <button onclick="startSession('Sunita Devi', 62, 'Female', '9123456789')" class="touch-btn w-full py-2.5 px-6 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-all">
-                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
-                <span>Demo Emergency Case (Acute Chest Pain Red Flag)</span>
+            <!-- 2. Scan & Share Option -->
+            <button onclick="openScanShareModal()" class="touch-btn w-full py-3 px-6 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all">
+                <i data-lucide="qr-code" class="w-4 h-4 text-blue-600"></i>
+                <span>${t.scanShareBtn}</span>
             </button>
         </div>
     </div>
@@ -979,44 +1122,68 @@ function renderLifestyleView(t) {
             <!-- Known Chronic Conditions -->
             <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                 <label class="block text-sm font-bold text-slate-800 mb-3">1. Known Chronic Conditions (पुरानी बीमारियाँ)</label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <button onclick="toggleCondition(this, 'Diabetes (Type 2)')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                    <button type="button" onclick="toggleCondition(this, 'Diabetes (Type 2)')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
                         Diabetes (शुगर)
                     </button>
-                    <button onclick="toggleCondition(this, 'Hypertension (BP)')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
+                    <button type="button" onclick="toggleCondition(this, 'Hypertension (BP)')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
                         High BP (रक्तचाप)
                     </button>
-                    <button onclick="toggleCondition(this, 'Thyroid Disorder')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
+                    <button type="button" onclick="toggleCondition(this, 'Thyroid Disorder')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
                         Thyroid (थायराइड)
                     </button>
-                    <button onclick="toggleCondition(this, 'Asthma / Allergy')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
+                    <button type="button" onclick="toggleCondition(this, 'Asthma / Allergy')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
                         Asthma (दमा)
                     </button>
                 </div>
+                <!-- Custom Condition Adder -->
+                <div class="flex space-x-2 pt-1">
+                    <input id="custom-condition-input" onkeypress="if(event.key==='Enter') { event.preventDefault(); addCustomCondition(); }" type="text" placeholder="Add custom condition (e.g. Arthritis, Migraine, Acid Reflux)..." class="flex-1 p-2.5 rounded-xl border border-slate-300 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="button" onclick="addCustomCondition()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center space-x-1">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Add</span>
+                    </button>
+                </div>
+                <div id="custom-conditions-list" class="flex flex-wrap gap-1.5 mt-2.5"></div>
             </div>
 
             <!-- Drug Allergies -->
             <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                 <label class="block text-sm font-bold text-slate-800 mb-2">2. Known Drug Allergies (दवाओं से एलर्जी)</label>
-                <input id="allergy-input" type="text" placeholder="e.g. Penicillin, Sulfa, Aspirin (Leave blank if none)" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                <input id="allergy-input" type="text" placeholder="e.g. Penicillin, Sulfa, Aspirin (Leave blank if none)" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500 bg-white">
                 <p class="text-[11px] text-slate-400 mt-1">Cross-checked automatically by the Clinical Safety Engine during physician review.</p>
+            </div>
+
+            <!-- Current Regular Medications -->
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <label class="block text-sm font-bold text-slate-800 mb-2">3. Current Regular Medications (वर्तमान में ले रहे दवाइयाँ)</label>
+                <input id="meds-input" type="text" placeholder="e.g. Tab Metformin 500mg (1 OD), Tab Telmisartan 40mg (1 OD Morning)" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500 bg-white">
+                <p class="text-[11px] text-slate-400 mt-1">Comma-separated list of regular prescription drugs.</p>
             </div>
 
             <!-- Lifestyle Habits -->
             <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <label class="block text-sm font-bold text-slate-800 mb-3">3. Daily Lifestyle & Habits (दैनिक आदतें)</label>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block text-sm font-bold text-slate-800 mb-3">4. Daily Lifestyle & Habits (दैनिक आदतें)</label>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <span class="text-xs font-semibold text-slate-600 block mb-1">Smoking / Tobacco</span>
-                        <select id="lifestyle-smoking" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium">
+                        <select id="lifestyle-smoking" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium bg-white">
                             <option value="Non-smoker">Non-smoker</option>
                             <option value="Occasional">Occasional</option>
                             <option value="Regular smoker">Regular smoker</option>
                         </select>
                     </div>
                     <div>
+                        <span class="text-xs font-semibold text-slate-600 block mb-1">Alcohol</span>
+                        <select id="lifestyle-alcohol" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium bg-white">
+                            <option value="No">No</option>
+                            <option value="Occasional">Occasional</option>
+                            <option value="Regular">Regular</option>
+                        </select>
+                    </div>
+                    <div>
                         <span class="text-xs font-semibold text-slate-600 block mb-1">Diet Preference</span>
-                        <select id="lifestyle-diet" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium">
+                        <select id="lifestyle-diet" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium bg-white">
                             <option value="Vegetarian">Vegetarian</option>
                             <option value="Non-Vegetarian">Non-Vegetarian / Mixed</option>
                             <option value="Low Sodium / Diabetic">Low Sodium / Diabetic</option>
@@ -1068,14 +1235,18 @@ function renderDocumentView(t) {
             <p class="text-xs text-slate-400 mt-1">Supports Multimodal Vision OCR (Handwritten, Printed & Multilingual)</p>
         </div>
 
-        <!-- Sample Loaders -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <button onclick="uploadDemoPrescription()" class="touch-btn py-3 px-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center space-x-2">
+        <!-- Action Buttons: Manual Entry & Sample Loaders -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <button onclick="openCustomDocModal()" class="touch-btn py-3 px-3.5 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-900 font-bold text-xs flex items-center justify-center space-x-1.5 shadow-sm">
+                <i data-lucide="file-plus" class="w-4 h-4 text-teal-700"></i>
+                <span>➕ Enter Custom Record</span>
+            </button>
+            <button onclick="uploadDemoPrescription()" class="touch-btn py-3 px-3.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center space-x-1.5">
                 <i data-lucide="file-check" class="w-4 h-4"></i>
                 <span>${t.demoPrescriptionBtn}</span>
             </button>
-            <button onclick="uploadDemoLabReport()" class="touch-btn py-3 px-4 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center space-x-2">
-                <i data-lucide="flask-conical" class="w-4 h-4"></i>
+            <button onclick="uploadDemoLabReport()" class="touch-btn py-3 px-3.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center space-x-1.5">
+                <i data-lucide="flask-conical" class="w-4 h-4 text-amber-600"></i>
                 <span>${t.demoLabReportBtn}</span>
             </button>
         </div>
@@ -1137,6 +1308,103 @@ function renderDocumentView(t) {
         </div>
     </div>
     `;
+}
+
+function openCustomDocModal() {
+    document.getElementById('custom-doc-modal').classList.remove('hidden');
+}
+
+function closeCustomDocModal() {
+    document.getElementById('custom-doc-modal').classList.add('hidden');
+}
+
+async function submitCustomDocEntry() {
+    if (!state.currentSessionId) return;
+
+    const docType = document.getElementById('custom-doc-type')?.value || "prescription";
+    const title = document.getElementById('custom-doc-title')?.value.trim() || "District General Hospital OPD";
+    const medsRaw = document.getElementById('custom-doc-meds')?.value.trim() || "";
+    
+    // Parse medicines from user text
+    const medicines = medsRaw ? medsRaw.split(',').map(m => {
+        const parts = m.trim().split('(');
+        const nameAndDose = parts[0].trim();
+        const freq = parts.length > 1 ? parts[1].replace(')', '').trim() : "As directed";
+        return {
+            name: nameAndDose,
+            dosage: "Prescribed dose",
+            frequency: freq,
+            snomed_ct: "410942007"
+        };
+    }).filter(m => m.name.length > 0) : [];
+
+    // Parse investigations
+    const hba1c = document.getElementById('custom-doc-hba1c')?.value.trim();
+    const fbs = document.getElementById('custom-doc-fbs')?.value.trim();
+    const uric = document.getElementById('custom-doc-uric')?.value.trim();
+    const creatinine = document.getElementById('custom-doc-creatinine')?.value.trim();
+
+    const investigations = [];
+    if (hba1c) {
+        investigations.push({
+            test: "HbA1c (Glycated Hemoglobin)",
+            value: hba1c,
+            unit: "%",
+            ref_range: "4.0 - 5.6 %",
+            is_abnormal: parseFloat(hba1c) > 5.6
+        });
+    }
+    if (fbs) {
+        investigations.push({
+            test: "Fasting Blood Sugar (Glucose)",
+            value: fbs,
+            unit: "mg/dL",
+            ref_range: "70 - 99 mg/dL",
+            is_abnormal: parseFloat(fbs) > 99
+        });
+    }
+    if (uric) {
+        investigations.push({
+            test: "Serum Uric Acid",
+            value: uric,
+            unit: "mg/dL",
+            ref_range: "3.5 - 7.2 mg/dL",
+            is_abnormal: parseFloat(uric) > 7.2
+        });
+    }
+    if (creatinine) {
+        investigations.push({
+            test: "Serum Creatinine",
+            value: creatinine,
+            unit: "mg/dL",
+            ref_range: "0.7 - 1.2 mg/dL",
+            is_abnormal: parseFloat(creatinine) > 1.2
+        });
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/documents/manual-entry`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                session_id: state.currentSessionId,
+                document_title: title,
+                document_type: docType,
+                doctor_or_lab_name: title,
+                medicines: medicines,
+                investigations: investigations,
+                diagnoses: ["Patient Record Intake"]
+            })
+        });
+        const data = await res.json();
+        state.uploadedDocuments.push(data);
+        closeCustomDocModal();
+        render();
+        speakPrompt("Custom medical record and lab values successfully saved.");
+    } catch (err) {
+        console.error("Custom doc entry failed:", err);
+        alert("Failed to save custom medical record.");
+    }
 }
 
 function handleFileUpload(event) {

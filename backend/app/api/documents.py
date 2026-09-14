@@ -10,7 +10,7 @@ from app.database import get_db
 from app.config import settings
 from app.models.session import IntakeSession
 from app.models.document import MedicalDocument
-from app.schemas.document_schema import DocumentResponse
+from app.schemas.document_schema import DocumentResponse, ManualDocumentEntryRequest
 from app.services.ocr_service import ocr_service
 
 router = APIRouter()
@@ -67,6 +67,94 @@ async def upload_medical_document(
         document_date=parsed_date,
         doctor_or_lab_name=doctor_or_lab_name or "District Hospital OPD",
         ocr_raw_text=ocr_raw_text,
+        extracted_entities=extracted_entities,
+        abnormal_flags=abnormal_flags
+    )
+    db.add(doc_record)
+    db.commit()
+    db.refresh(doc_record)
+
+    return doc_record
+
+@router.post("/manual-entry", response_model=DocumentResponse)
+def create_manual_document_entry(
+    payload: ManualDocumentEntryRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Allow user to directly enter custom medications, diagnoses, and lab results.
+    """
+    session = db.query(IntakeSession).filter(IntakeSession.id == payload.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    file_id = str(uuid.uuid4())
+    parsed_date = date.today()
+    if payload.document_date:
+        try:
+            parsed_date = datetime.strptime(payload.document_date, "%Y-%m-%d").date()
+        except ValueError:
+            parsed_date = date.today()
+
+    # Process abnormal lab flags for custom user-entered investigations
+    abnormal_flags = []
+    for inv in payload.investigations:
+        test_name = inv.get("test", "")
+        val_str = str(inv.get("value", ""))
+        unit = inv.get("unit", "")
+        ref = inv.get("ref_range", "")
+        is_abnormal = inv.get("is_abnormal", False)
+
+        # Check against reference ranges
+        note = "Custom user recorded lab test parameter"
+        for k, v in ocr_service.LAB_REFERENCE_RANGES.items():
+            if k in test_name.lower().replace(" ", "_"):
+                try:
+                    num_val = float(val_str.split()[0])
+                    if num_val > v.get("max", 999999):
+                        is_abnormal = True
+                        note = v.get("alert_high", note)
+                    elif num_val < v.get("min", 0):
+                        is_abnormal = True
+                        note = v.get("alert_low", note)
+                except (ValueError, IndexError):
+                    pass
+                break
+
+        if is_abnormal:
+            abnormal_flags.append({
+                "parameter": test_name,
+                "value": f"{val_str} {unit}".strip(),
+                "ref_range": ref or "Reference Range",
+                "severity": "high",
+                "clinical_note": note
+            })
+
+    extracted_entities = {
+        "diagnoses": payload.diagnoses,
+        "medicines": payload.medicines,
+        "investigations": payload.investigations,
+        "vital_signs": payload.vital_signs,
+        "procedures": payload.procedures,
+        "ai_ocr_metadata": {
+            "model": "User Customized Direct Clinical Intake",
+            "overall_confidence": 100,
+            "handwriting_clarity": "Verified User Entry",
+            "language_detected": "User Specified"
+        }
+    }
+
+    raw_text = f"--- USER DIRECT ENTRY: {payload.document_title} ---\n" + "\n".join([f"- Med: {m.get('name')} {m.get('dosage')}" for m in payload.medicines])
+
+    doc_record = MedicalDocument(
+        id=file_id,
+        session_id=session.id,
+        file_name=payload.document_title or "Custom Patient Medical Record",
+        file_path="manual_entry",
+        document_type=payload.document_type,
+        document_date=parsed_date,
+        doctor_or_lab_name=payload.doctor_or_lab_name or "Self / Prior Provider",
+        ocr_raw_text=raw_text,
         extracted_entities=extracted_entities,
         abnormal_flags=abnormal_flags
     )

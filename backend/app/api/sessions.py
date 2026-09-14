@@ -131,6 +131,26 @@ def get_session_details(session_id: str, db: Session = Depends(get_db)):
         ]
     }
 
+@router.post("/{session_id}/lifestyle")
+def update_session_lifestyle(session_id: str, payload: Dict[str, Any], db: Session = Depends(get_db)):
+    session = db.query(IntakeSession).filter(IntakeSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    history = session.clinical_history
+    if history:
+        if "past_medical_history" in payload:
+            history.past_medical_history = payload["past_medical_history"]
+        if "drug_allergies" in payload:
+            history.drug_allergies = payload["drug_allergies"]
+        if "current_medications" in payload:
+            history.current_medications = payload["current_medications"]
+        if "personal_history" in payload:
+            history.personal_history = payload["personal_history"]
+        db.commit()
+
+    return {"status": "SUCCESS", "message": "Clinical lifestyle and medical history updated."}
+
 @router.post("/{session_id}/complete")
 def complete_session(session_id: str, db: Session = Depends(get_db)):
     session = db.query(IntakeSession).filter(IntakeSession.id == session_id).first()

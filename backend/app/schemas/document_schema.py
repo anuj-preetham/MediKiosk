@@ -16,6 +16,18 @@ class DocumentEntityResponse(BaseModel):
     vital_signs: Dict[str, Any] = {}
     procedures: List[str] = []
 
+class ManualDocumentEntryRequest(BaseModel):
+    session_id: str
+    document_type: str = "prescription" # "prescription" | "lab_report" | "discharge_summary"
+    document_title: Optional[str] = "Clinical Entry"
+    document_date: Optional[str] = None
+    doctor_or_lab_name: Optional[str] = "Patient Record Entry"
+    diagnoses: List[str] = []
+    medicines: List[Dict[str, Any]] = []
+    investigations: List[Dict[str, Any]] = []
+    vital_signs: Dict[str, Any] = {}
+    procedures: List[str] = []
+
 class DocumentResponse(BaseModel):
     id: str
     session_id: str
