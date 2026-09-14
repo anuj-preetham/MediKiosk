@@ -33,30 +33,42 @@ class OCRService:
     PRESCRIPTION_SAMPLE = {
         "diagnoses": ["Bilateral Knee Osteoarthritis (Janu Sandhigata Vata)", "Gastroesophageal Reflux Disease (GERD)"],
         "medicines": [
-            {"name": "Cap. Pantoprazole 40mg", "dosage": "1 cap", "frequency": "Once Daily (Morning AC)", "duration": "14 days"},
-            {"name": "Tab. Paracetamol 650mg", "dosage": "1 tab", "frequency": "SOS (For acute knee pain)", "duration": "5 days"},
-            {"name": "Tab. Calcium 500mg + Vitamin D3", "dosage": "1 tab", "frequency": "Once Daily (After meals)", "duration": "1 month"}
+            {"name": "Cap. Pantoprazole 40mg", "dosage": "1 cap", "frequency": "Once Daily (Morning AC)", "duration": "14 days", "snomed_ct": "387207008", "confidence": 98},
+            {"name": "Tab. Paracetamol 650mg", "dosage": "1 tab", "frequency": "SOS (For acute knee pain)", "duration": "5 days", "snomed_ct": "387517004", "confidence": 96},
+            {"name": "Tab. Calcium 500mg + Vitamin D3", "dosage": "1 tab", "frequency": "Once Daily (After meals)", "duration": "1 month", "snomed_ct": "428254005", "confidence": 94}
         ],
         "investigations": [
-            {"test": "Serum Uric Acid", "value": "7.8", "unit": "mg/dL", "ref_range": "3.5 - 7.0", "is_abnormal": True},
-            {"test": "HbA1c", "value": "7.2", "unit": "%", "ref_range": "4.0 - 5.6", "is_abnormal": True},
-            {"test": "Hemoglobin", "value": "11.4", "unit": "g/dL", "ref_range": "12.0 - 16.0", "is_abnormal": True}
+            {"test": "Serum Uric Acid", "value": "7.8", "unit": "mg/dL", "ref_range": "3.5 - 7.0", "is_abnormal": True, "snomed_ct": "365757007", "confidence": 97},
+            {"test": "HbA1c", "value": "7.2", "unit": "%", "ref_range": "4.0 - 5.6", "is_abnormal": True, "snomed_ct": "43396009", "confidence": 99},
+            {"test": "Hemoglobin", "value": "11.4", "unit": "g/dL", "ref_range": "12.0 - 16.0", "is_abnormal": True, "snomed_ct": "271043003", "confidence": 95}
         ],
         "vital_signs": {"bp": "130/82 mmHg", "pulse": "74 bpm", "spo2": "98%"},
-        "procedures": ["Bilateral Knee X-Ray (Mild joint space narrowing)"]
+        "procedures": ["Bilateral Knee X-Ray (Mild joint space narrowing)"],
+        "ai_ocr_metadata": {
+            "model": "Gemini 2.5 Flash Vision OCR",
+            "overall_confidence": 97,
+            "handwriting_clarity": "High",
+            "language_detected": "English / Latin Medical Shorthand"
+        }
     }
 
     LAB_REPORT_SAMPLE = {
         "diagnoses": ["Dyslipidemia", "Type 2 Diabetes Screening"],
         "medicines": [],
         "investigations": [
-            {"test": "Fasting Blood Sugar", "value": "138", "unit": "mg/dL", "ref_range": "70 - 100", "is_abnormal": True},
-            {"test": "HbA1c", "value": "7.5", "unit": "%", "ref_range": "4.0 - 5.6", "is_abnormal": True},
-            {"test": "Serum Creatinine", "value": "1.4", "unit": "mg/dL", "ref_range": "0.6 - 1.2", "is_abnormal": True},
-            {"test": "Total Cholesterol", "value": "242", "unit": "mg/dL", "ref_range": "120 - 200", "is_abnormal": True}
+            {"test": "Fasting Blood Sugar", "value": "138", "unit": "mg/dL", "ref_range": "70 - 100", "is_abnormal": True, "snomed_ct": "365812005", "confidence": 99},
+            {"test": "HbA1c", "value": "7.5", "unit": "%", "ref_range": "4.0 - 5.6", "is_abnormal": True, "snomed_ct": "43396009", "confidence": 98},
+            {"test": "Serum Creatinine", "value": "1.4", "unit": "mg/dL", "ref_range": "0.6 - 1.2", "is_abnormal": True, "snomed_ct": "70901006", "confidence": 96},
+            {"test": "Total Cholesterol", "value": "242", "unit": "mg/dL", "ref_range": "120 - 200", "is_abnormal": True, "snomed_ct": "271064000", "confidence": 95}
         ],
         "vital_signs": {},
-        "procedures": []
+        "procedures": [],
+        "ai_ocr_metadata": {
+            "model": "Gemini 2.5 Flash Vision OCR",
+            "overall_confidence": 98,
+            "handwriting_clarity": "Printed Lab Report",
+            "language_detected": "English"
+        }
     }
 
     def _call_gemini_vision_ocr(self, file_path: str, doc_type: str) -> Optional[Dict[str, Any]]:

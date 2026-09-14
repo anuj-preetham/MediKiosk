@@ -179,3 +179,38 @@ def test_fhir_bundle_export():
     bundle = res_fhir.json()
     assert bundle["resourceType"] == "Bundle"
     assert bundle["type"] == "document"
+
+def test_ai_copilot_analysis_and_doctor_query():
+    res_queue = client.get("/api/doctor/queue")
+    first_session_id = res_queue.json()[0]["session_id"]
+
+    # 1. Verify AI Copilot analysis in summary
+    res_summary = client.get(f"/api/doctor/sessions/{first_session_id}/summary")
+    assert res_summary.status_code == 200
+    summary = res_summary.json()
+    assert "ai_copilot_analysis" in summary
+    copilot = summary["ai_copilot_analysis"]
+    assert copilot is not None
+    assert "clinical_impression" in copilot
+    assert len(copilot["differential_diagnoses"]) >= 1
+    assert "confidence_score" in copilot["differential_diagnoses"][0]
+    assert "soap_draft" in copilot
+
+    # 2. Test interactive Doctor AI assistant query
+    res_query = client.post(f"/api/doctor/sessions/{first_session_id}/ai-copilot/query", json={
+        "doctor_query": "What are the contraindications for prescribing NSAIDs in this patient?"
+    })
+    assert res_query.status_code == 200
+    q_data = res_query.json()
+    assert "ai_response" in q_data
+    assert len(q_data["clinical_context_used"]) >= 1
+    assert "suggested_follow_up" in q_data
+
+def test_document_ocr_confidence_metadata():
+    from app.services.ocr_service import ocr_service
+    extracted, flags, raw = ocr_service.extract_document_entities("dummy_path.jpg", doc_type="prescription")
+    assert len(extracted["medicines"]) >= 1
+    assert "confidence" in extracted["medicines"][0]
+    assert "snomed_ct" in extracted["medicines"][0]
+    assert "ai_ocr_metadata" in extracted
+

@@ -9,11 +9,13 @@ from app.models.session import IntakeSession, SessionStatus, TriageLevel
 from app.models.review import PhysicianReview
 from app.schemas.summary_schema import (
     ClinicalSummaryResponse, TimelineEvent,
-    PhysicianReviewRequest, PhysicianReviewResponse
+    PhysicianReviewRequest, PhysicianReviewResponse,
+    AICopilotAnalysis, AICopilotQueryRequest, AICopilotQueryResponse
 )
 from app.services.fhir_service import fhir_service
 from app.services.safety_service import safety_service
 from app.services.pdf_service import pdf_service
+from app.services.ai_service import ai_service
 
 router = APIRouter()
 
@@ -108,6 +110,21 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
     safety_alerts = safety_service.check_drug_allergies(patient_allergies, all_meds)
     safety_alerts.extend(safety_service.check_drug_interactions(all_meds))
 
+    # 4. Generate AI Clinical Copilot & Differential Diagnoses
+    copilot_input = {
+        "patient_name": patient.full_name if patient else "Patient",
+        "patient_age": patient.age if patient else 45,
+        "patient_gender": patient.gender if patient else "M",
+        "chief_complaint": history.chief_complaint if history else None,
+        "socrates_hpi": history.socrates_hpi if history else {},
+        "past_medical_history": history.past_medical_history if history else [],
+        "current_medications": all_meds,
+        "drug_allergies": patient_allergies,
+        "abnormal_lab_highlights": abnormal_highlights,
+        "triage_level": session.triage_level
+    }
+    ai_copilot_data = ai_service.generate_ai_clinical_copilot(copilot_input)
+
     return ClinicalSummaryResponse(
         session_id=session.id,
         patient_name=patient.full_name if patient else "Anonymous Patient",
@@ -128,9 +145,49 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
         abnormal_lab_highlights=abnormal_highlights,
         chronological_timeline=timeline,
         safety_alerts=safety_alerts,
+        ai_copilot_analysis=ai_copilot_data,
         is_verified=bool(review and review.is_verified),
         physician_notes=review.physician_clinical_notes if review else None
     )
+
+@router.post("/sessions/{session_id}/ai-copilot/query", response_model=AICopilotQueryResponse)
+def query_ai_copilot(session_id: str, payload: AICopilotQueryRequest, db: Session = Depends(get_db)):
+    """
+    Interactive Doctor AI Clinical Assistant query tool for specific patient cases.
+    """
+    session = db.query(IntakeSession).filter(IntakeSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    patient = session.patient
+    history = session.clinical_history
+    docs = session.documents
+
+    extracted_meds = []
+    abnormal_highlights = []
+    for d in docs:
+        if d.extracted_entities:
+            extracted_meds.extend(d.extracted_entities.get("medicines", []))
+        if d.abnormal_flags:
+            abnormal_highlights.extend(d.abnormal_flags)
+
+    all_meds = extracted_meds or (history.current_medications if history else [])
+    
+    context_dict = {
+        "patient_name": patient.full_name if patient else "Patient",
+        "patient_age": patient.age if patient else 45,
+        "patient_gender": patient.gender if patient else "M",
+        "chief_complaint": history.chief_complaint if history else None,
+        "socrates_hpi": history.socrates_hpi if history else {},
+        "past_medical_history": history.past_medical_history if history else [],
+        "current_medications": all_meds,
+        "drug_allergies": history.drug_allergies if history else [],
+        "abnormal_lab_highlights": abnormal_highlights,
+        "triage_level": session.triage_level
+    }
+
+    result = ai_service.answer_physician_query(context_dict, payload.doctor_query)
+    return AICopilotQueryResponse(**result)
 
 @router.get("/sessions/{session_id}/casesheet", response_class=HTMLResponse)
 def get_printable_opd_casesheet(session_id: str, db: Session = Depends(get_db)):

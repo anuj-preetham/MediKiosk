@@ -10,6 +10,44 @@ class TimelineEvent(BaseModel):
     source_document_id: Optional[str] = None
     highlights: List[str] = []
 
+class DifferentialDiagnosisItem(BaseModel):
+    condition: str
+    icd10_code: Optional[str] = None
+    snomed_ct: Optional[str] = None
+    confidence_score: int # e.g. 85 for 85%
+    clinical_rationale: str
+    urgency: str # "Routine" | "Priority" | "High"
+
+class ClinicalRiskScore(BaseModel):
+    category: str # e.g. "Cardiovascular", "GI Bleed", "Metabolic"
+    risk_level: str # "Low" | "Moderate" | "Elevated" | "High"
+    score_note: str
+
+class SOAPDraft(BaseModel):
+    subjective: str
+    objective: str
+    assessment: str
+    plan: str
+
+class AICopilotAnalysis(BaseModel):
+    clinical_impression: str
+    differential_diagnoses: List[DifferentialDiagnosisItem] = []
+    clinical_risk_scores: List[ClinicalRiskScore] = []
+    suggested_investigations: List[str] = []
+    suggested_lifestyle_advice: List[str] = []
+    soap_draft: SOAPDraft
+    engine_model: str = "Gemini 2.5 Flash Clinical Engine"
+
+class AICopilotQueryRequest(BaseModel):
+    doctor_query: str
+
+class AICopilotQueryResponse(BaseModel):
+    query: str
+    ai_response: str
+    clinical_context_used: List[str] = []
+    suggested_follow_up: List[str] = []
+    engine_model: str = "Gemini 2.5 Flash Clinical Copilot"
+
 class ClinicalSummaryResponse(BaseModel):
     session_id: str
     patient_name: str
@@ -41,7 +79,10 @@ class ClinicalSummaryResponse(BaseModel):
     # 5. Clinical Safety & Cross-Checks
     safety_alerts: List[Dict[str, Any]] = []
     
-    # 6. Review & Status
+    # 6. AI Clinical Copilot & Differential Diagnoses
+    ai_copilot_analysis: Optional[AICopilotAnalysis] = None
+
+    # 7. Review & Status
     is_verified: bool = False
     physician_notes: Optional[str] = None
 
