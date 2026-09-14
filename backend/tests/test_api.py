@@ -320,4 +320,23 @@ def test_manual_document_entry_and_abnormal_lab_screening():
     assert any("HbA1c" in p for p in highlight_params)
     assert any("Uric Acid" in p for p in highlight_params)
 
+def test_ai_settings_status_and_config():
+    # 1. Test get status
+    res_status = client.get("/api/settings/ai-status")
+    assert res_status.status_code == 200
+    status_data = res_status.json()
+    assert "is_configured" in status_data
+    assert "models_supported" in status_data
+    assert "gemini-2.5-flash" in status_data["models_supported"]
+
+    # 2. Test configure key
+    test_key = "AIzaSyDummyKeyForTestingUnitTestsOnly"
+    res_config = client.post("/api/settings/ai-config", json={"gemini_api_key": test_key})
+    assert res_config.status_code == 200
+    config_data = res_config.json()
+    assert config_data["is_configured"] == True
+    assert config_data["masked_key"] != ""
+    assert "AIza" in config_data["masked_key"]
+
+
 

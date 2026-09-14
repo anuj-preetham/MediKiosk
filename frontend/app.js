@@ -1859,8 +1859,179 @@ async function sendDoctorAiQuery(queryText) {
     }
 }
 
+// ==========================================
+// AI Settings & Google Gemini Key Management
+// ==========================================
+
+async function checkAiStatus() {
+    try {
+        const res = await fetch(`${API_BASE}/settings/ai-status`);
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const pillIndicator = document.getElementById('ai-status-indicator');
+        const pillText = document.getElementById('ai-status-text');
+        
+        if (pillIndicator) {
+            if (data.is_configured) {
+                pillIndicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+                if (pillText) pillText.textContent = "Gemini 2.5 Live";
+            } else {
+                pillIndicator.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
+                if (pillText) pillText.textContent = "AI Settings";
+            }
+        }
+        return data;
+    } catch (e) {
+        console.warn("Could not check AI status:", e);
+    }
+}
+
+async function openAiSettingsModal() {
+    const modal = document.getElementById('ai-settings-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const statusData = await checkAiStatus();
+    const statusTitle = document.getElementById('ai-status-card-title');
+    const statusBadge = document.getElementById('ai-status-pill-badge');
+    const statusDesc = document.getElementById('ai-status-card-desc');
+    const maskedKeyEl = document.getElementById('ai-masked-key-display');
+    const badgeIcon = document.getElementById('ai-status-badge-icon');
+    const testResultEl = document.getElementById('ai-test-result');
+    if (testResultEl) testResultEl.classList.add('hidden');
+
+    if (statusData && statusData.is_configured) {
+        if (statusTitle) statusTitle.textContent = "Status: Live Google Gemini 2.5 Flash Connected";
+        if (statusBadge) {
+            statusBadge.textContent = "Live Gemini AI";
+            statusBadge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800";
+        }
+        if (badgeIcon) {
+            badgeIcon.className = "w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 mt-0.5";
+            badgeIcon.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i>';
+        }
+        if (statusDesc) {
+            statusDesc.textContent = "Full Gemini 2.5 Flash clinical reasoning is active across Adaptive SOCRATES intake, ICD-10 Differential Diagnoses, Risk Stratification, and Multimodal Vision OCR.";
+        }
+        if (maskedKeyEl) {
+            maskedKeyEl.textContent = `Configured Key: ${statusData.masked_key}`;
+            maskedKeyEl.classList.remove('hidden');
+        }
+    } else {
+        if (statusTitle) statusTitle.textContent = "Status: Clinical Knowledge Fallback Engine";
+        if (statusBadge) {
+            statusBadge.textContent = "Offline / Rule-based";
+            statusBadge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800";
+        }
+        if (badgeIcon) {
+            badgeIcon.className = "w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 mt-0.5";
+            badgeIcon.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4"></i>';
+        }
+        if (statusDesc) {
+            statusDesc.textContent = "Provide a Google Gemini API Key to unlock real-time Gemini 2.5 Flash clinical reasoning, customized differential diagnoses, and doctor copilot dialogue.";
+        }
+        if (maskedKeyEl) maskedKeyEl.classList.add('hidden');
+    }
+    lucide.createIcons();
+}
+
+function closeAiSettingsModal() {
+    const modal = document.getElementById('ai-settings-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('gemini-api-key-input');
+    const eyeIcon = document.getElementById('eye-icon');
+    if (!input) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        if (eyeIcon) eyeIcon.setAttribute('data-lucide', 'eye-off');
+    } else {
+        input.type = 'password';
+        if (eyeIcon) eyeIcon.setAttribute('data-lucide', 'eye');
+    }
+    lucide.createIcons();
+}
+
+async function testGeminiConnection() {
+    const keyInput = document.getElementById('gemini-api-key-input')?.value?.trim();
+    const testBtn = document.getElementById('btn-test-gemini');
+    const testBtnText = document.getElementById('test-btn-text');
+    const resultEl = document.getElementById('ai-test-result');
+    
+    if (testBtn) testBtn.disabled = true;
+    if (testBtnText) testBtnText.textContent = "Testing...";
+    if (resultEl) {
+        resultEl.className = "p-3 rounded-xl text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200 block";
+        resultEl.innerHTML = "Connecting to Google Gemini API (gemini-2.5-flash)...";
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/settings/test-gemini`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gemini_api_key: keyInput || undefined })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === "SUCCESS") {
+            resultEl.className = "p-3 rounded-xl text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 block";
+            resultEl.innerHTML = `<strong>Connected Successfully!</strong> Latency: ${data.latency_ms}ms with model <code>${data.model_tested}</code>. AI response: "${data.reply_preview}"`;
+        } else {
+            resultEl.className = "p-3 rounded-xl text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200 block";
+            resultEl.innerHTML = `<strong>Connection Failed:</strong> ${data.detail || data.error || 'Invalid API Key or network error.'}`;
+        }
+    } catch (err) {
+        if (resultEl) {
+            resultEl.className = "p-3 rounded-xl text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200 block";
+            resultEl.innerHTML = `<strong>Error:</strong> Network request failed (${err.message}).`;
+        }
+    } finally {
+        if (testBtn) testBtn.disabled = false;
+        if (testBtnText) testBtnText.textContent = "Test Connection";
+    }
+}
+
+async function saveGeminiApiKey() {
+    const keyInput = document.getElementById('gemini-api-key-input')?.value?.trim();
+    if (!keyInput) {
+        alert("Please enter a valid Google Gemini API Key.");
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-gemini');
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE}/settings/ai-config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gemini_api_key: keyInput })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === "SUCCESS") {
+            const input = document.getElementById('gemini-api-key-input');
+            if (input) input.value = '';
+            await checkAiStatus();
+            alert("Gemini API Key saved and activated successfully! Gemini 2.5 Flash is now powering clinical intake and diagnostic copilot.");
+            closeAiSettingsModal();
+        } else {
+            alert(`Failed to save key: ${data.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        alert(`Error saving Gemini API key: ${err.message}`);
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
+}
+
 // Initial Launch
 window.addEventListener('DOMContentLoaded', () => {
     initSpeechRecognition();
+    checkAiStatus();
     render();
 });
+

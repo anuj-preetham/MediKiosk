@@ -75,4 +75,16 @@ class TriageService:
 
         return False, None
 
+    def detect_red_flags(self, text: str, current_step: str = "chief_complaint", language: str = "en") -> Optional[Dict[str, Any]]:
+        is_flag, details = self.scan_for_red_flags(text, language)
+        if is_flag and details:
+            return {
+                "alert_title": details["title"],
+                "instructions": details["instructions"],
+                "severity": details["severity"],
+                "pattern_id": details["pattern_id"]
+            }
+        return None
+
 triage_service = TriageService()
+
