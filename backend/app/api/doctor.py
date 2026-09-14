@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 
@@ -11,6 +12,8 @@ from app.schemas.summary_schema import (
     PhysicianReviewRequest, PhysicianReviewResponse
 )
 from app.services.fhir_service import fhir_service
+from app.services.safety_service import safety_service
+from app.services.pdf_service import pdf_service
 
 router = APIRouter()
 
@@ -46,7 +49,7 @@ def get_opd_patient_queue(db: Session = Depends(get_db)):
 @router.get("/sessions/{session_id}/summary", response_model=ClinicalSummaryResponse)
 def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_db)):
     """
-    Generate unified physician-ready clinical summary.
+    Generate unified physician-ready clinical summary with safety alerts and chronological timeline.
     """
     session = db.query(IntakeSession).filter(IntakeSession.id == session_id).first()
     if not session:
@@ -73,18 +76,21 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
 
     # 2. Add document events
     abnormal_highlights = []
+    extracted_meds = []
+
     for d in docs:
         d_date_str = str(d.document_date) if d.document_date else "Prior Visit"
         diag_str = ", ".join(d.extracted_entities.get("diagnoses", [])) if d.extracted_entities else ""
-        meds_count = len(d.extracted_entities.get("medicines", [])) if d.extracted_entities else 0
+        meds_in_doc = (d.extracted_entities.get("medicines", []) if d.extracted_entities else [])
+        extracted_meds.extend(meds_in_doc)
         
         timeline.append(TimelineEvent(
             date=d_date_str,
             event_type=d.document_type,
             title=f"{d.document_type.replace('_', ' ').title()} ({d.doctor_or_lab_name or 'District Hospital'})",
-            description=f"Extracted Diagnoses: {diag_str or 'General Clinical'}. Prescribed {meds_count} medications.",
+            description=f"Extracted Diagnoses: {diag_str or 'General Clinical'}. Prescribed {len(meds_in_doc)} medications.",
             source_document_id=d.id,
-            highlights=[f"{m.get('name', '')} ({m.get('dosage', '')})" for m in (d.extracted_entities.get("medicines", []) if d.extracted_entities else [])[:2]]
+            highlights=[f"{m.get('name', '')} ({m.get('dosage', '')})" for m in meds_in_doc[:2]]
         ))
 
         # Collect abnormal lab values
@@ -94,11 +100,13 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
     # Sort timeline
     timeline.reverse()
 
-    # Collect extracted current medications
-    extracted_meds = []
-    for d in docs:
-        if d.extracted_entities and "medicines" in d.extracted_entities:
-            extracted_meds.extend(d.extracted_entities["medicines"])
+    # Combine medications
+    all_meds = extracted_meds or (history.current_medications if history else [])
+
+    # 3. Clinical Safety Cross-Checks (Drug-Allergy & Drug-Drug)
+    patient_allergies = history.drug_allergies if history else []
+    safety_alerts = safety_service.check_drug_allergies(patient_allergies, all_meds)
+    safety_alerts.extend(safety_service.check_drug_interactions(all_meds))
 
     return ClinicalSummaryResponse(
         session_id=session.id,
@@ -112,16 +120,69 @@ def get_structured_clinical_summary(session_id: str, db: Session = Depends(get_d
         socrates_hpi=history.socrates_hpi if history else {},
         past_medical_history=history.past_medical_history if history else ["Hypertension (3 years)"],
         past_surgical_history=history.past_surgical_history if history else [],
-        current_medications=extracted_meds or (history.current_medications if history else []),
-        drug_allergies=history.drug_allergies if history else ["No known drug allergies reported"],
+        current_medications=all_meds,
+        drug_allergies=patient_allergies or ["No known drug allergies reported"],
         family_history=history.family_history if history else [],
         personal_history=history.personal_history if history else {"diet": "Regular", "sleep": "Normal"},
         review_of_systems=history.review_of_systems if history else {},
         abnormal_lab_highlights=abnormal_highlights,
         chronological_timeline=timeline,
+        safety_alerts=safety_alerts,
         is_verified=bool(review and review.is_verified),
         physician_notes=review.physician_clinical_notes if review else None
     )
+
+@router.get("/sessions/{session_id}/casesheet", response_class=HTMLResponse)
+def get_printable_opd_casesheet(session_id: str, db: Session = Depends(get_db)):
+    """
+    Generate professional printable OPD Case Sheet HTML ready for print / PDF export.
+    """
+    session = db.query(IntakeSession).filter(IntakeSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    patient = {
+        "full_name": session.patient.full_name if session.patient else "Anonymous",
+        "age": session.patient.age if session.patient else 0,
+        "gender": session.patient.gender if session.patient else "N/A",
+        "abha_id": session.patient.abha_id if session.patient else "N/A",
+        "phone_number": session.patient.phone_number if session.patient else "N/A"
+    }
+
+    history = {
+        "chief_complaint": session.clinical_history.chief_complaint if session.clinical_history else None,
+        "socrates_hpi": session.clinical_history.socrates_hpi if session.clinical_history else {},
+        "past_medical_history": session.clinical_history.past_medical_history if session.clinical_history else [],
+        "drug_allergies": session.clinical_history.drug_allergies if session.clinical_history else [],
+        "current_medications": session.clinical_history.current_medications if session.clinical_history else [],
+        "personal_history": session.clinical_history.personal_history if session.clinical_history else {}
+    }
+
+    docs_list = [
+        {"id": d.id, "file_name": d.file_name, "document_type": d.document_type}
+        for d in session.documents
+    ]
+
+    review_data = {
+        "doctor_name": session.physician_review.doctor_name if session.physician_review else "Dr. Rajesh Sharma, MD",
+        "department": session.physician_review.department if session.physician_review else "General Medicine OPD",
+        "physician_clinical_notes": session.physician_review.physician_clinical_notes if session.physician_review else "Clinical intake verified.",
+        "prescribed_plan": session.physician_review.prescribed_plan if session.physician_review else ""
+    } if session.physician_review else None
+
+    # Safety alerts
+    all_meds = history["current_medications"]
+    safety_alerts = safety_service.check_drug_allergies(history["drug_allergies"], all_meds)
+
+    html_content = pdf_service.generate_opd_casesheet_html(
+        session_id=session.id,
+        patient=patient,
+        clinical_history=history,
+        documents=docs_list,
+        review=review_data,
+        safety_alerts=safety_alerts
+    )
+    return HTMLResponse(content=html_content)
 
 @router.post("/sessions/{session_id}/verify", response_model=PhysicianReviewResponse)
 def verify_physician_review(session_id: str, payload: PhysicianReviewRequest, db: Session = Depends(get_db)):

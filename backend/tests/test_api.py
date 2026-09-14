@@ -44,10 +44,11 @@ def test_start_session_and_socrates():
     assert res_init.status_code == 200
     assert "welcome to medikiosk" in res_init.json()["ai_reply"].lower()
 
-    # 3. Send chief complaint
+    # 3. Send chief complaint with body location
     res_chat = client.post(f"/api/chat/{session_id}/message", json={
         "message": "Persistent burning stomach pain after meals",
-        "step": "chief_complaint"
+        "step": "chief_complaint",
+        "body_location": "Upper Abdomen"
     })
     assert res_chat.status_code == 200
     assert res_chat.json()["current_step"] == "site"
@@ -81,6 +82,49 @@ def test_doctor_queue_and_summary():
     assert "chief_complaint" in summary
     assert "chronological_timeline" in summary
     assert "abnormal_lab_highlights" in summary
+    assert "safety_alerts" in summary
+
+def test_drug_allergy_safety_cross_check():
+    # Start session with Penicillin allergy
+    res = client.post("/api/sessions/start", json={
+        "language": "en",
+        "patient_data": {
+            "full_name": "Anita Verma",
+            "age": 38,
+            "gender": "Female",
+            "phone_number": "9812345678",
+            "preferred_language": "en",
+            "consent_granted": True,
+            "consent_audio_verified": True
+        }
+    })
+    session_id = res.json()["id"]
+
+    # Set allergy in clinical history
+    from app.database import SessionLocal
+    from app.models.clinical_history import ClinicalHistory
+    db = SessionLocal()
+    hist = db.query(ClinicalHistory).filter(ClinicalHistory.session_id == session_id).first()
+    hist.drug_allergies = ["Penicillin hypersensitivity / Anaphylaxis"]
+    hist.current_medications = [{"name": "Tab. Amoxicillin 500mg", "dosage": "1 TDS", "frequency": "TDS"}]
+    db.commit()
+    db.close()
+
+    # Get summary and check safety alerts
+    res_summary = client.get(f"/api/doctor/sessions/{session_id}/summary")
+    assert res_summary.status_code == 200
+    alerts = res_summary.json()["safety_alerts"]
+    assert len(alerts) >= 1
+    assert "Amoxicillin" in alerts[0]["medication"] or "Beta-Lactam" in alerts[0]["allergy_class"]
+
+def test_printable_opd_casesheet_html():
+    res = client.get("/api/doctor/queue")
+    first_session_id = res.json()[0]["session_id"]
+    
+    res_sheet = client.get(f"/api/doctor/sessions/{first_session_id}/casesheet")
+    assert res_sheet.status_code == 200
+    assert "text/html" in res_sheet.headers["content-type"]
+    assert "OPD Case Sheet" in res_sheet.text
 
 def test_fhir_bundle_export():
     res = client.get("/api/doctor/queue")

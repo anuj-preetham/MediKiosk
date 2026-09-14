@@ -37,8 +37,11 @@ class ClinicalSummaryResponse(BaseModel):
     # 4. Document Intelligence & Timeline
     abnormal_lab_highlights: List[Dict[str, Any]] = []
     chronological_timeline: List[TimelineEvent] = []
+
+    # 5. Clinical Safety & Cross-Checks
+    safety_alerts: List[Dict[str, Any]] = []
     
-    # 5. Review & Status
+    # 6. Review & Status
     is_verified: bool = False
     physician_notes: Optional[str] = None
 

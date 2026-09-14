@@ -1,20 +1,20 @@
 /**
- * MediKiosk Frontend Application
- * Multi-portal Patient Kiosk & Physician Review System (SIH26047)
- * Generalized Clinical History & Medical Document Intelligence Platform
+ * MediKiosk Frontend Application (Production-Grade Final Platform)
+ * Smart OPD Clinical History & Medical Document Intelligence Platform (SIH26047)
  */
 
 const API_BASE = '/api';
 
 const state = {
     portal: 'kiosk', // 'kiosk' | 'doctor'
-    language: 'en', // 'en' | 'hi'
+    language: 'en', // 'en' | 'hi' | 'bn' | 'ta' | 'te' | 'mr'
     audioGuidance: true,
     currentSessionId: null,
     currentPatient: null,
-    kioskStep: 'consent', // 'consent' | 'chat' | 'lifestyle' | 'document' | 'complete'
+    kioskStep: 'consent', // 'consent' | 'bodymap' | 'chat' | 'lifestyle' | 'document' | 'complete'
     currentChatStep: 'chief_complaint',
     chatHistory: [],
+    selectedBodyZone: null,
     extractedSocrates: {},
     lifestyleAnswers: {
         diet: 'Normal balanced',
@@ -24,29 +24,34 @@ const state = {
     },
     uploadedDocuments: [],
     doctorQueue: [],
+    queueFilter: 'all', // 'all' | 'red_flag' | 'priority' | 'routine'
+    searchQuery: '',
     selectedDoctorSession: null,
+    doctorViewTab: 'summary', // 'summary' | 'split_document' | 'timeline'
     isRecording: false
 };
 
-// UI Translations
+// UI Multi-lingual Localization
 const i18n = {
     en: {
         welcomeTitle: "Welcome to MediKiosk",
-        welcomeSubtitle: "Smart Hospital OPD Clinical Intake & Case-Taking Kiosk",
+        welcomeSubtitle: "AI-Powered Patient Clinical History & Document Intake Platform",
         consentTitle: "Patient Identity & ABDM Consent",
-        consentDesc: "By continuing, you consent to secure recording of your clinical history, symptoms, and prior medical records for your consultation under the DPDP Act 2023.",
+        consentDesc: "By continuing, you consent to secure recording of your clinical history, symptoms, and prior medical records for your OPD consultation under the Digital Personal Data Protection (DPDP) Act 2023.",
         startBtn: "Start Touch / Voice Intake",
         quickStart: "Walk-in Patient (Quick Start)",
-        abhaLabel: "ABHA ID / Mobile Number",
+        bodymapTitle: "Select Pain / Discomfort Area",
+        bodymapSubtitle: "Touch the body map where you feel pain or discomfort",
+        skipBodymap: "Skip Body Map & Speak Directly",
         speakingPrompt: "Listening to your voice...",
         micBtn: "Tap to Speak",
         sendBtn: "Send Response",
-        orTouch: "Or choose a quick option below:",
+        orTouch: "Or select a quick option below:",
         socratesStepLabels: {
             chief_complaint: "Chief Complaint",
-            site: "Location / Site",
+            site: "Pain Location",
             onset: "Onset & Duration",
-            character: "Pain Feeling",
+            character: "Pain Sensation",
             radiation: "Spread / Radiation",
             associated: "Other Symptoms",
             timing: "Time Pattern",
@@ -54,15 +59,17 @@ const i18n = {
             severity: "Pain Severity"
         },
         lifestyleTitle: "Past Medical & Lifestyle History",
-        lifestyleSubtitle: "Record chronic conditions, allergies, and daily health habits",
-        submitLifestyleBtn: "Continue to Document Upload",
-        docTitle: "Medical Document Digitization (OCR)",
+        lifestyleSubtitle: "Record chronic conditions, known allergies, and daily habits",
+        submitLifestyleBtn: "Continue to Document Scanner",
+        docTitle: "Medical Document Digitization (Vision OCR)",
         docSubtitle: "Upload or scan previous prescriptions, lab reports, or discharge summaries",
         uploadBtn: "Scan / Upload Document",
         demoPrescriptionBtn: "Use Sample Hospital Prescription",
+        demoLabReportBtn: "Use Sample Blood Lab Report",
         summaryTitle: "Physician Clinical History Summary",
-        verifyBtn: "Approve & Push to ABDM / HIS",
+        verifyBtn: "Approve & Submit to ABDM / HIS",
         fhirBtn: "View ABDM FHIR JSON",
+        printBtn: "Print OPD Case Sheet",
         triageRoutine: "Routine",
         triagePriority: "Priority",
         triageEmergency: "Emergency Red Flag"
@@ -74,7 +81,9 @@ const i18n = {
         consentDesc: "आगे बढ़कर आप अपने स्वास्थ्य इतिहास, वर्तमान लक्षणों और पुराने पर्चों को डॉक्टर परामर्श हेतु सुरक्षित रूप से रिकॉर्ड करने की सहमति देते हैं।",
         startBtn: "बोलकर या छूकर शुरू करें",
         quickStart: "सीधे शुरू करें (त्वरित प्रवेश)",
-        abhaLabel: "आभा आईडी / मोबाइल नंबर",
+        bodymapTitle: "दर्द या तकलीफ का स्थान चुनें",
+        bodymapSubtitle: "शरीर के जिस हिस्से में दर्द या समस्या है, उसे छूकर चुनें",
+        skipBodymap: "बॉडी मैप छोड़ें और सीधे बोलें",
         speakingPrompt: "आपकी आवाज सुनी जा रही है...",
         micBtn: "बोलने के लिए दबाएं",
         sendBtn: "जवाब भेजें",
@@ -92,17 +101,167 @@ const i18n = {
         },
         lifestyleTitle: "पूर्व चिकित्सा इतिहास एवं जीवनशैली",
         lifestyleSubtitle: "पुरानी बीमारियाँ, एलर्जी एवं खान-पान का विवरण",
-        submitLifestyleBtn: "दस्तावेज़ अपलोड पर जाएं",
-        docTitle: "चिकित्सा दस्तावेज़ डिजिटलीकरण (OCR)",
+        submitLifestyleBtn: "दस्तावेज़ स्कैनर पर जाएं",
+        docTitle: "चिकित्सा दस्तावेज़ डिजिटलीकरण (Vision OCR)",
         docSubtitle: "पुराने पर्चे या लैब रिपोर्ट स्कैन / अपलोड करें",
         uploadBtn: "पर्चा अपलोड करें",
-        demoPrescriptionBtn: "नमूना पर्चा लोड करें",
+        demoPrescriptionBtn: "नमूना अस्पताल पर्चा लोड करें",
+        demoLabReportBtn: "नमूना ब्लड टेस्ट रिपोर्ट लोड करें",
         summaryTitle: "चिकित्सक सारांश (Physician Summary)",
         verifyBtn: "सत्यापित करें एवं ABDM में भेजें",
         fhirBtn: "ABDM FHIR JSON देखें",
+        printBtn: "ओपीडी केस शीट प्रिंट करें",
         triageRoutine: "सामान्य",
         triagePriority: "प्राथमिकता",
         triageEmergency: "आपातकालीन रेड फ्लैग"
+    },
+    bn: {
+        welcomeTitle: "মেডিকিয়স্কে স্বাগতম",
+        welcomeSubtitle: "স্মার্ট হাসপাতাল ওপিডি ক্লিনিকাল ইতিহাস ও নথি ব্যবস্থা",
+        consentTitle: "রোগীর সম্মতি ও ডেটা সুরক্ষা (DPDP 2023)",
+        consentDesc: "এগিয়ে গিয়ে আপনি আপনার চিকিৎসা ইতিহাস এবং পুরোনো প্রেসক্রিপশন নিরাপদে রেকর্ড করার সম্মতি দিচ্ছেন।",
+        startBtn: "স্পর্শ বা ভয়েস দিয়ে শুরু করুন",
+        bodymapTitle: "ব্যথার স্থান নির্বাচন করুন",
+        bodymapSubtitle: "শরীরের যে অংশে ব্যথা আছে সেখানে স্পর্শ করুন",
+        skipBodymap: "সরাসরি কথা বলুন",
+        speakingPrompt: "আপনার কথা শোনা হচ্ছে...",
+        micBtn: "বলতে চাপুন",
+        sendBtn: "উত্তর পাঠান",
+        orTouch: "অথবা নিচের বিকল্পগুলি বেছে নিন:",
+        socratesStepLabels: {
+            chief_complaint: "প্রধান সমস্যা",
+            site: "ব্যথার স্থান",
+            onset: "শুরুর সময়",
+            character: "ব্যথার অনুভূতি",
+            radiation: "ছড়ানোর ধরণ",
+            associated: "অন্যান্য লক্ষণ",
+            timing: "সময় প্যাটার্ন",
+            exacerbating: "উপশমের কারণ",
+            severity: "তীব্রতা"
+        },
+        lifestyleTitle: "পূর্ব চিকিৎসা ইতিহাস",
+        lifestyleSubtitle: "দীর্ঘস্থায়ী রোগ এবং অ্যালার্জি",
+        submitLifestyleBtn: "নথি স্ক্যানারে যান",
+        docTitle: "মেডিকেল নথি ডিজিটাইজেশন (OCR)",
+        docSubtitle: "পুরোনো প্রেসক্রিপশন বা রিপোর্ট আপলোড করুন",
+        uploadBtn: "নথি আপলোড করুন",
+        demoPrescriptionBtn: "নমুনা প্রেসক্রিপশন",
+        demoLabReportBtn: "নমুনা ল্যাব রিপোর্ট",
+        summaryTitle: "চিকিৎসক সারাংশ",
+        verifyBtn: "অনুমোদন করুন ও জমা দিন",
+        fhirBtn: "FHIR JSON দেখুন",
+        printBtn: "কেস শীট প্রিন্ট করুন"
+    },
+    ta: {
+        welcomeTitle: "மெடிகியோஸ்க்கிற்கு வரவேற்கிறோம்",
+        welcomeSubtitle: "மருத்துவமனை வெளிநோயாளி பிரிவு மருத்துவ வரலாறு தளம்",
+        consentTitle: "நோயாளி ஒப்புதல் (DPDP 2023)",
+        consentDesc: "தங்கள் மருத்துவ விவரங்களை பதிவு செய்ய ஒப்புதல் அளிக்கிறீர்கள்.",
+        startBtn: "தொடங்கவும்",
+        bodymapTitle: "வலி உள்ள இடத்தை தேர்ந்தெடுக்கவும்",
+        bodymapSubtitle: "உடலில் வலி உள்ள பகுதியை தொடவும்",
+        skipBodymap: "நேரடியாக பேசவும்",
+        speakingPrompt: "குரலை கேட்கிறது...",
+        micBtn: "பேச தொடவும்",
+        sendBtn: "அனுப்புக",
+        orTouch: "அல்லது விருப்பங்களை தேர்ந்தெடுக்கவும்:",
+        socratesStepLabels: {
+            chief_complaint: "முக்கிய பிரச்சனை",
+            site: "வலி உள்ள இடம்",
+            onset: "தொடங்கிய நேரம்",
+            character: "வலியின் வகை",
+            radiation: "பரவும் விதம்",
+            associated: "பிற அறிகுறிகள்",
+            timing: "நேர இடைவெளி",
+            exacerbating: "நிவாரண காரணிகள்",
+            severity: "தீவிரம்"
+        },
+        lifestyleTitle: "முந்தைய மருத்துவ வரலாறு",
+        lifestyleSubtitle: "நீண்டகால நோய்கள் மற்றும் ஒவ்வாமை",
+        submitLifestyleBtn: "ஆவணங்களை பதிவேற்றவும்",
+        docTitle: "மருத்துவ ஆவணங்கள் டிஜிட்டல்மயமாக்கல்",
+        docSubtitle: "பழைய மருத்துவ சீட்டுகளை பதிவேற்றவும்",
+        uploadBtn: "ஆவணத்தை பதிவேற்றவும்",
+        demoPrescriptionBtn: "மாதிரி மருத்துவ சீட்டு",
+        demoLabReportBtn: "மாதிரி ஆய்வு அறிக்கை",
+        summaryTitle: "மருத்துவர் சுருக்கம்",
+        verifyBtn: "சரிபார்த்து சமர்ப்பிக்கவும்",
+        fhirBtn: "FHIR JSON காண்க",
+        printBtn: "அச்சிடுக"
+    },
+    te: {
+        welcomeTitle: "మెడికియోస్క్‌కు స్వాగతం",
+        welcomeSubtitle: "స్మార్ట్ ఆసుపత్రి ఓపిడి క్లినికల్ కేస్-టేకింగ్ ప్లాట్‌ఫారమ్",
+        consentTitle: "రోగి సమ్మతి (DPDP 2023)",
+        consentDesc: "మీ ఆరోగ్య వివరాలు నమోదు చేయడానికి అనుమతిస్తున్నారు.",
+        startBtn: "ప్రారంభించండి",
+        bodymapTitle: "నొప్పి ఉన్న ప్రదేశాన్ని ఎంచుకోండి",
+        bodymapSubtitle: "నొప్పి ఉన్న శరీర భాగాన్ని తాకండి",
+        skipBodymap: "నేరుగా మాట్లాడండి",
+        speakingPrompt: "వినబడుతోంది...",
+        micBtn: "మాట్లాడటానికి నొక్కండి",
+        sendBtn: "పంపండి",
+        orTouch: "లేదా కింద ఎంపికలను ఎంచుకోండి:",
+        socratesStepLabels: {
+            chief_complaint: "ప్రధాన సమస్య",
+            site: "నొప్పి స్థానం",
+            onset: "ప్రారంభం",
+            character: "నొప్పి రకం",
+            radiation: "వ్యాపించే విధానం",
+            associated: "ఇతర లక్షణాలు",
+            timing: "సమయ నమూనా",
+            exacerbating: "ఉపశమన కారకాలు",
+            severity: "తీవ్రత"
+        },
+        lifestyleTitle: "పూర్వ వైద్య చరిత్ర",
+        lifestyleSubtitle: "దీర్ఘకాలిక వ్యాధులు మరియు అలర్జీలు",
+        submitLifestyleBtn: "డాక్యుమెంట్ స్కానర్‌కు వెళ్లండి",
+        docTitle: "మెడికల్ డాక్యుమెంట్ డిజిటలైజేషన్",
+        docSubtitle: "పాత ప్రిస్క్రిప్షన్ లేదా ల్యాబ్ నివేదికలు",
+        uploadBtn: "డాక్యుమెంట్ అప్‌లోడ్ చేయండి",
+        demoPrescriptionBtn: "నమూనా ప్రిస్క్రిప్షన్",
+        demoLabReportBtn: "నమూనా ల్యాబ్ రిపోర్ట్",
+        summaryTitle: "వైద్యుల సారాంశం",
+        verifyBtn: "ఆమోదించి సమర్పించండి",
+        fhirBtn: "FHIR JSON చూడండి",
+        printBtn: "ప్రింట్ చేయండి"
+    },
+    mr: {
+        welcomeTitle: "मेडीकियोस्क मध्ये आपले स्वागत आहे",
+        welcomeSubtitle: "स्मार्ट हॉस्पिटल ओपीडी डिजिटल केस-टेकिंग प्लॅटफॉर्म",
+        consentTitle: "रुग्ण संमती व डेटा सुरक्षा (DPDP 2023)",
+        consentDesc: "आपला आरोग्य इतिहास आणि जुनी कागदपत्रे सुरक्षितपणे नोंदवण्यास आपण संमती देत आहात.",
+        startBtn: "सुरू करा",
+        bodymapTitle: "त्रास किंवा वेदनेचा भाग निवडा",
+        bodymapSubtitle: "वेदना असलेल्या शरीराच्या भागावर स्पर्श करा",
+        skipBodymap: "थेट बोला",
+        speakingPrompt: "ऐकत आहे...",
+        micBtn: "बोलण्यासाठी दाबा",
+        sendBtn: "उत्तर पाठवा",
+        orTouch: "किंवा खालील पर्याय निवडा:",
+        socratesStepLabels: {
+            chief_complaint: "मुख्य समस्या",
+            site: "वेदनेचे ठिकाण",
+            onset: "सुरुवात",
+            character: "वेदनेचा प्रकार",
+            radiation: "पसरणे",
+            associated: "इतर लक्षणे",
+            timing: "वेळ",
+            exacerbating: "आराम देणारे घटक",
+            severity: "तीव्रता"
+        },
+        lifestyleTitle: "मागील वैद्यकीय इतिहास",
+        lifestyleSubtitle: "जुने आजार व ऍलर्जी",
+        submitLifestyleBtn: "दस्तऐवज स्कॅनरवर जा",
+        docTitle: "वैद्यकीय कागदपत्रे डिजिटलीकरण",
+        docSubtitle: "जुने प्रिस्क्रिप्शन किंवा रिपोर्ट स्कॅन करा",
+        uploadBtn: "कागदपत्र अपलोड करा",
+        demoPrescriptionBtn: "नमुना प्रिस्क्रिप्शन",
+        demoLabReportBtn: "नमुना लॅब रिपोर्ट",
+        summaryTitle: "डॉक्टर सारांश",
+        verifyBtn: "मंजूर करा व पाठवा",
+        fhirBtn: "FHIR JSON पहा",
+        printBtn: "केस शीट प्रिंट करा"
     }
 };
 
@@ -111,7 +270,15 @@ function speakPrompt(text) {
     if (!state.audioGuidance || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = state.language === 'hi' ? 'hi-IN' : 'en-IN';
+    const langMap = {
+        'en': 'en-IN',
+        'hi': 'hi-IN',
+        'bn': 'bn-IN',
+        'ta': 'ta-IN',
+        'te': 'te-IN',
+        'mr': 'mr-IN'
+    };
+    utterance.lang = langMap[state.language] || 'en-IN';
     utterance.rate = 0.95;
     window.speechSynthesis.speak(utterance);
 }
@@ -124,7 +291,15 @@ function initSpeechRecognition() {
         recognition = new SpeechRec();
         recognition.continuous = false;
         recognition.interimResults = false;
-        recognition.lang = state.language === 'hi' ? 'hi-IN' : 'en-IN';
+        const langMap = {
+            'en': 'en-IN',
+            'hi': 'hi-IN',
+            'bn': 'bn-IN',
+            'ta': 'ta-IN',
+            'te': 'te-IN',
+            'mr': 'mr-IN'
+        };
+        recognition.lang = langMap[state.language] || 'en-IN';
 
         recognition.onstart = () => {
             state.isRecording = true;
@@ -158,7 +333,15 @@ function toggleVoiceInput() {
     if (state.isRecording) {
         recognition.stop();
     } else {
-        recognition.lang = state.language === 'hi' ? 'hi-IN' : 'en-IN';
+        const langMap = {
+            'en': 'en-IN',
+            'hi': 'hi-IN',
+            'bn': 'bn-IN',
+            'ta': 'ta-IN',
+            'te': 'te-IN',
+            'mr': 'mr-IN'
+        };
+        recognition.lang = langMap[state.language] || 'en-IN';
         recognition.start();
     }
 }
@@ -182,9 +365,10 @@ function switchPortal(portal) {
 }
 
 // Language Switcher
-function toggleLanguage() {
-    state.language = state.language === 'en' ? 'hi' : 'en';
-    document.getElementById('current-lang-label').innerText = state.language === 'en' ? 'English' : 'हिन्दी';
+function changeLanguage(lang) {
+    state.language = lang;
+    const select = document.getElementById('lang-select');
+    if (select) select.value = lang;
     render();
 }
 
@@ -222,11 +406,18 @@ async function startSession(fullName = "OPD Walk-in Patient", age = 45, gender =
         const data = await res.json();
         state.currentSessionId = data.id;
         state.currentPatient = data.patient;
-        state.kioskStep = 'chat';
-        await loadInitialChatQuestion();
+        state.kioskStep = 'bodymap';
+        render();
+        speakPrompt(i18n[state.language]?.bodymapTitle || "Please select the pain or discomfort area on the body map.");
     } catch (err) {
         console.error("Failed to start session:", err);
     }
+}
+
+function selectBodyLocation(locationName, zoneId) {
+    state.selectedBodyZone = locationName;
+    state.kioskStep = 'chat';
+    sendChatMessage(`Discomfort in ${locationName}`, 'site', locationName);
 }
 
 async function loadInitialChatQuestion() {
@@ -243,10 +434,10 @@ async function loadInitialChatQuestion() {
     }
 }
 
-async function sendChatMessage(message) {
+async function sendChatMessage(message, overrideStep = null, bodyLocation = null) {
     if (!message || !state.currentSessionId) return;
 
-    // Add user message to history
+    const stepToSend = overrideStep || state.currentChatStep;
     state.chatHistory.push({ sender: 'user', message: message });
     render();
 
@@ -256,7 +447,8 @@ async function sendChatMessage(message) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 message: message,
-                step: state.currentChatStep
+                step: stepToSend,
+                body_location: bodyLocation || state.selectedBodyZone
             })
         });
         const data = await res.json();
@@ -280,9 +472,13 @@ async function sendChatMessage(message) {
 }
 
 function submitLifestyleData() {
+    const allergyVal = document.getElementById('allergy-input')?.value;
+    if (allergyVal) {
+        state.lifestyleAnswers.allergies = allergyVal.split(',').map(s => s.trim());
+    }
     state.kioskStep = 'document';
     render();
-    speakPrompt(state.language === 'hi' ? 'पूर्व इतिहास दर्ज हो गया है। अब पुराने पर्चे या रिपोर्ट अपलोड करें।' : 'Lifestyle and medical history recorded. Now please upload previous medical documents.');
+    speakPrompt(state.language === 'hi' ? 'पूर्व इतिहास दर्ज हो गया है। अब पुराने पर्चे या रिपोर्ट स्कैन करें।' : 'Lifestyle and medical history recorded. Now please scan or upload prior medical records.');
 }
 
 async function uploadDocument(fileOrBlob, filename = "prescription.jpg", docType = "prescription") {
@@ -310,13 +506,13 @@ async function finishKioskIntake() {
         await fetch(`${API_BASE}/sessions/${state.currentSessionId}/complete`, { method: 'POST' });
         state.kioskStep = 'complete';
         render();
-        speakPrompt(state.language === 'hi' ? 'आपकी केस-टेकिंग पूरी हो गई है। डॉक्टर को भेज दिया गया है।' : 'Intake completed successfully and sent to doctor queue.');
+        speakPrompt(state.language === 'hi' ? 'आपकी केस-टेकिंग पूरी हो गई है। डॉक्टर को भेज दिया गया है।' : 'Intake completed successfully and submitted to doctor queue.');
     } catch (err) {
         console.error("Complete intake failed:", err);
     }
 }
 
-// Red Flag Handling
+// Red Flag Modal Handling
 function showRedFlagModal(title, instructions) {
     document.getElementById('red-flag-title').innerText = title;
     document.getElementById('red-flag-instructions').innerText = instructions;
@@ -342,8 +538,9 @@ async function loadDoctorQueue() {
         state.doctorQueue = queue;
 
         const badge = document.getElementById('queue-badge-count');
+        const emergencyCount = queue.filter(q => q.triage_level === 'emergency_red_flag').length;
         if (queue.length > 0) {
-            badge.innerText = queue.length;
+            badge.innerText = emergencyCount > 0 ? `🔴 ${emergencyCount}` : queue.length;
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
@@ -382,7 +579,7 @@ async function verifyDoctorReview() {
             body: JSON.stringify({
                 doctor_id: "DOC-OPD-201",
                 doctor_name: "Dr. Rajesh Sharma, MD (Medicine)",
-                department: "General Medicine OPD",
+                department: "Department of General Medicine",
                 physician_clinical_notes: notes,
                 prescribed_plan: plan,
                 is_verified: true
@@ -394,6 +591,24 @@ async function verifyDoctorReview() {
     } catch (err) {
         console.error("Failed to verify review:", err);
     }
+}
+
+// Case Sheet Modal & Print
+function openCaseSheetModal(sessionId) {
+    const targetId = sessionId || state.selectedDoctorSession?.session_id;
+    if (!targetId) return;
+    const iframe = document.getElementById('casesheet-iframe');
+    iframe.src = `${API_BASE}/doctor/sessions/${targetId}/casesheet`;
+    document.getElementById('casesheet-modal').classList.remove('hidden');
+}
+
+function closeCaseSheetModal() {
+    document.getElementById('casesheet-modal').classList.add('hidden');
+}
+
+function printCaseSheetIframe() {
+    const iframe = document.getElementById('casesheet-iframe');
+    iframe.contentWindow.print();
 }
 
 async function openFhirModal(sessionId) {
@@ -415,13 +630,13 @@ function closeFhirModal() {
 function copyFhirJson() {
     const text = document.getElementById('fhir-json-content').innerText;
     navigator.clipboard.writeText(text);
-    alert("FHIR JSON copied to clipboard!");
+    alert("ABDM FHIR JSON copied to clipboard!");
 }
 
-// Render Main Template
+// Render Master
 function render() {
     const root = document.getElementById('app-root');
-    const t = i18n[state.language];
+    const t = i18n[state.language] || i18n['en'];
 
     if (state.portal === 'doctor') {
         root.innerHTML = renderDoctorPortal(t);
@@ -429,10 +644,13 @@ function render() {
         return;
     }
 
-    // Patient Kiosk Flows
+    // Patient Kiosk Steps
     switch (state.kioskStep) {
         case 'consent':
             root.innerHTML = renderConsentView(t);
+            break;
+        case 'bodymap':
+            root.innerHTML = renderBodyMapView(t);
             break;
         case 'chat':
             root.innerHTML = renderChatView(t);
@@ -471,7 +689,7 @@ function renderConsentView(t) {
                     <h3 class="text-base font-bold text-blue-950">${t.consentTitle}</h3>
                     <p class="text-sm text-blue-800/90 mt-1 leading-relaxed">${t.consentDesc}</p>
                     <div class="flex items-center space-x-4 mt-3 text-xs font-semibold text-blue-700">
-                        <span class="flex items-center"><i data-lucide="lock" class="w-3.5 h-3.5 mr-1"></i> DPDP Act 2023</span>
+                        <span class="flex items-center"><i data-lucide="lock" class="w-3.5 h-3.5 mr-1"></i> DPDP Act 2023 Compliant</span>
                         <span class="flex items-center"><i data-lucide="file-check" class="w-3.5 h-3.5 mr-1"></i> ABDM / ABHA Ready</span>
                     </div>
                 </div>
@@ -480,25 +698,107 @@ function renderConsentView(t) {
 
         <div class="space-y-4">
             <button onclick="startSession()" class="touch-btn w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white font-bold text-lg flex items-center justify-center space-x-3 shadow-lg shadow-blue-600/25 transition-all">
-                <i data-lucide="mic" class="w-6 h-6"></i>
+                <i data-lucide="sparkles" class="w-6 h-6"></i>
                 <span>${t.startBtn}</span>
             </button>
             <button onclick="startSession('Sunita Devi', 62, 'Female', '9123456789')" class="touch-btn w-full py-3 px-6 rounded-2xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 font-semibold text-sm flex items-center justify-center space-x-2 transition-all">
                 <i data-lucide="alert-circle" class="w-4 h-4"></i>
-                <span>Demo Emergency Case (Chest Pain Red Flag)</span>
+                <span>Demo Emergency Case (Acute Chest Pain Red Flag)</span>
             </button>
         </div>
     </div>
     `;
 }
 
-// 2. Chat View (SOCRATES Multimodal)
+// 2. Interactive 2D Human Body Map View
+function renderBodyMapView(t) {
+    return `
+    <div class="max-w-4xl mx-auto w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100 animate-in fade-in">
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                <i data-lucide="user" class="w-6 h-6"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-900">${t.bodymapTitle}</h2>
+            <p class="text-slate-500 text-sm font-medium mt-0.5">${t.bodymapSubtitle}</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            
+            <!-- Left: Interactive Body Silhouette -->
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex justify-center">
+                <svg width="240" height="380" viewBox="0 0 240 380" class="drop-shadow-sm select-none">
+                    <!-- Head & Neck -->
+                    <circle cx="120" cy="35" r="24" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Head / Neck (सिर व गर्दन)', 'head')"></circle>
+                    <rect x="112" y="58" width="16" height="14" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Head / Neck (सिर व गर्दन)', 'head')"></rect>
+
+                    <!-- Chest & Cardiac -->
+                    <rect x="85" y="74" width="70" height="50" rx="8" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Chest / Heart (सीना व हृदय)', 'chest')"></rect>
+                    <text x="120" y="102" font-size="10" font-weight="bold" fill="#475569" text-anchor="middle" pointer-events="none">CHEST</text>
+
+                    <!-- Upper Abdomen / Epigastrium -->
+                    <rect x="85" y="128" width="70" height="40" rx="6" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Upper Abdomen / Stomach (पेट का ऊपरी हिस्सा)', 'epigastrium')"></rect>
+                    <text x="120" y="152" font-size="9" font-weight="bold" fill="#475569" text-anchor="middle" pointer-events="none">STOMACH</text>
+
+                    <!-- Lower Abdomen & Pelvis -->
+                    <rect x="88" y="172" width="64" height="42" rx="6" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Lower Abdomen / Pelvis (पेट का निचला हिस्सा)', 'pelvis')"></rect>
+                    <text x="120" y="196" font-size="9" font-weight="bold" fill="#475569" text-anchor="middle" pointer-events="none">PELVIS</text>
+
+                    <!-- Upper Limbs / Arms -->
+                    <rect x="52" y="80" width="28" height="110" rx="8" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Arms & Shoulders (कंधा व हाथ)', 'arms')"></rect>
+                    <rect x="160" y="80" width="28" height="110" rx="8" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Arms & Shoulders (कंधा व हाथ)', 'arms')"></rect>
+
+                    <!-- Legs & Knees -->
+                    <rect x="88" y="220" width="28" height="140" rx="8" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Bilateral Knees & Legs (घुटने व पैर)', 'knees')"></rect>
+                    <rect x="124" y="220" width="28" height="140" rx="8" class="body-zone" fill="#e2e8f0" stroke="#94a3b8" onclick="selectBodyLocation('Bilateral Knees & Legs (घुटने व पैर)', 'knees')"></rect>
+                    <circle cx="102" cy="285" r="10" fill="#3b82f6" opacity="0.3"></circle>
+                    <circle cx="138" cy="285" r="10" fill="#3b82f6" opacity="0.3"></circle>
+                    <text x="120" y="290" font-size="9" font-weight="bold" fill="#1e40af" text-anchor="middle" pointer-events="none">KNEES</text>
+                </svg>
+            </div>
+
+            <!-- Right: Quick Anatomical Selection Buttons -->
+            <div class="space-y-3">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Quick Touch Anatomy Options</p>
+                <button onclick="selectBodyLocation('Stomach & Upper Abdomen (पेट दर्द व एसिडिटी)', 'epigastrium')" class="touch-btn w-full p-3.5 px-4 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 hover:bg-blue-50 text-left font-bold text-sm text-slate-800 flex items-center justify-between">
+                    <span class="flex items-center"><i data-lucide="activity" class="w-4 h-4 mr-2.5 text-blue-600"></i> Stomach / Upper Abdomen (पेट / एसिडिटी)</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                <button onclick="selectBodyLocation('Chest & Heart (सीने में दर्द या भारीपन)', 'chest')" class="touch-btn w-full p-3.5 px-4 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 hover:bg-blue-50 text-left font-bold text-sm text-slate-800 flex items-center justify-between">
+                    <span class="flex items-center"><i data-lucide="heart" class="w-4 h-4 mr-2.5 text-rose-600"></i> Chest / Heart (सीना / सांस फूलना)</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                <button onclick="selectBodyLocation('Bilateral Knees & Joint Pain (घुटने व जोड़ों का दर्द)', 'knees')" class="touch-btn w-full p-3.5 px-4 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 hover:bg-blue-50 text-left font-bold text-sm text-slate-800 flex items-center justify-between">
+                    <span class="flex items-center"><i data-lucide="bone" class="w-4 h-4 mr-2.5 text-amber-600"></i> Knees & Joints (घुटने / जोड़ों में दर्द)</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                <button onclick="selectBodyLocation('Headache & Fever (सिरदर्द व बुखार)', 'head')" class="touch-btn w-full p-3.5 px-4 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 hover:bg-blue-50 text-left font-bold text-sm text-slate-800 flex items-center justify-between">
+                    <span class="flex items-center"><i data-lucide="thermometer" class="w-4 h-4 mr-2.5 text-teal-600"></i> Head & Throat (सिरदर्द / बुखार / जुकाम)</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                <button onclick="selectBodyLocation('Lower Back & Spine (कमर व रीढ़ का दर्द)', 'back')" class="touch-btn w-full p-3.5 px-4 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 hover:bg-blue-50 text-left font-bold text-sm text-slate-800 flex items-center justify-between">
+                    <span class="flex items-center"><i data-lucide="shield" class="w-4 h-4 mr-2.5 text-indigo-600"></i> Lower Back & Spine (कमर व पीठ)</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-200 flex justify-end">
+            <button onclick="state.kioskStep = 'chat'; loadInitialChatQuestion();" class="text-xs font-bold text-slate-500 hover:text-blue-600 flex items-center">
+                <span>${t.skipBodymap}</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+            </button>
+        </div>
+    </div>
+    `;
+}
+
+// 3. Chat View (SOCRATES Multimodal Engine)
 function renderChatView(t) {
     const options = state.currentChatOptions || [];
     const stepLabel = t.socratesStepLabels[state.currentChatStep] || state.currentChatStep;
 
     return `
-    <div class="max-w-4xl mx-auto w-full flex flex-col h-[78vh] bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
+    <div class="max-w-4xl mx-auto w-full flex flex-col h-[80vh] bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
         
         <!-- Chat Header & Stage Progress -->
         <div class="bg-slate-900 text-white p-4 px-6 flex items-center justify-between">
@@ -507,8 +807,8 @@ function renderChatView(t) {
                     <i data-lucide="message-square" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h3 class="text-sm font-bold text-white">Clinical Intake Interview</h3>
-                    <p class="text-xs text-slate-400">SOCRATES Framework Step: <span class="text-blue-400 font-semibold">${stepLabel}</span></p>
+                    <h3 class="text-sm font-bold text-white">Clinical Intake Dialogue</h3>
+                    <p class="text-xs text-slate-400">SOCRATES Step: <span class="text-blue-400 font-semibold">${stepLabel}</span></p>
                 </div>
             </div>
             <div class="flex items-center space-x-2">
@@ -568,7 +868,7 @@ function renderChatView(t) {
     `;
 }
 
-// 3. Past Medical & Lifestyle History View
+// 4. Past Medical & Lifestyle History View
 function renderLifestyleView(t) {
     return `
     <div class="max-w-3xl mx-auto w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-100 animate-in fade-in">
@@ -586,16 +886,16 @@ function renderLifestyleView(t) {
                 <label class="block text-sm font-bold text-slate-800 mb-3">1. Known Chronic Conditions (पुरानी बीमारियाँ)</label>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <button onclick="toggleCondition(this, 'Diabetes (Type 2)')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
-                        Diabetes
+                        Diabetes (शुगर)
                     </button>
                     <button onclick="toggleCondition(this, 'Hypertension (BP)')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
-                        High BP
+                        High BP (रक्तचाप)
                     </button>
                     <button onclick="toggleCondition(this, 'Thyroid Disorder')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
-                        Thyroid
+                        Thyroid (थायराइड)
                     </button>
                     <button onclick="toggleCondition(this, 'Asthma / Allergy')" class="cond-btn p-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold hover:border-blue-500 text-center">
-                        Asthma
+                        Asthma (दमा)
                     </button>
                 </div>
             </div>
@@ -603,7 +903,8 @@ function renderLifestyleView(t) {
             <!-- Drug Allergies -->
             <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                 <label class="block text-sm font-bold text-slate-800 mb-2">2. Known Drug Allergies (दवाओं से एलर्जी)</label>
-                <input id="allergy-input" type="text" placeholder="e.g. Penicillin, Sulfa drugs (Leave blank if none)" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                <input id="allergy-input" type="text" placeholder="e.g. Penicillin, Sulfa, Aspirin (Leave blank if none)" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500">
+                <p class="text-[11px] text-slate-400 mt-1">Cross-checked automatically by the Clinical Safety Engine during physician review.</p>
             </div>
 
             <!-- Lifestyle Habits -->
@@ -650,7 +951,7 @@ function toggleCondition(el, cond) {
     }
 }
 
-// 4. Document OCR View
+// 5. Document OCR & Vision AI View
 function renderDocumentView(t) {
     return `
     <div class="max-w-3xl mx-auto w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-100 animate-in fade-in">
@@ -668,15 +969,19 @@ function renderDocumentView(t) {
             <div class="w-12 h-12 bg-white rounded-2xl shadow-sm text-blue-600 flex items-center justify-center mx-auto mb-3">
                 <i data-lucide="upload-cloud" class="w-6 h-6"></i>
             </div>
-            <p class="text-sm font-bold text-slate-800">Click to upload prescription or lab report</p>
-            <p class="text-xs text-slate-400 mt-1">Supports JPG, PNG, PDF (Multilingual & Handwritten OCR)</p>
+            <p class="text-sm font-bold text-slate-800">Click or Drag & Drop Prescription / Lab Report</p>
+            <p class="text-xs text-slate-400 mt-1">Supports Multimodal Vision OCR (Handwritten, Printed & Multilingual)</p>
         </div>
 
-        <!-- Quick Demo Prescription Button -->
-        <div class="mb-6">
-            <button onclick="uploadDemoPrescription()" class="touch-btn w-full py-3 px-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center space-x-2">
+        <!-- Sample Loaders -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <button onclick="uploadDemoPrescription()" class="touch-btn py-3 px-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center space-x-2">
                 <i data-lucide="file-check" class="w-4 h-4"></i>
                 <span>${t.demoPrescriptionBtn}</span>
+            </button>
+            <button onclick="uploadDemoLabReport()" class="touch-btn py-3 px-4 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center space-x-2">
+                <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                <span>${t.demoLabReportBtn}</span>
             </button>
         </div>
 
@@ -695,14 +1000,16 @@ function renderDocumentView(t) {
                         </div>
                         
                         <!-- Extracted Medicines -->
-                        <div class="mt-3">
-                            <span class="text-[11px] font-bold text-slate-600">Extracted Medications:</span>
-                            <div class="flex flex-wrap gap-1.5 mt-1">
-                                ${(doc.extracted_entities.medicines || []).map(m => `
-                                    <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-700">${m.name} (${m.dosage})</span>
-                                `).join('')}
+                        ${(doc.extracted_entities.medicines || []).length > 0 ? `
+                            <div class="mt-3">
+                                <span class="text-[11px] font-bold text-slate-600">Extracted Medications:</span>
+                                <div class="flex flex-wrap gap-1.5 mt-1">
+                                    ${doc.extracted_entities.medicines.map(m => `
+                                        <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-700">${m.name} (${m.dosage})</span>
+                                    `).join('')}
+                                </div>
                             </div>
-                        </div>
+                        ` : ''}
 
                         <!-- Abnormal Highlights -->
                         ${(doc.abnormal_flags || []).length > 0 ? `
@@ -721,7 +1028,7 @@ function renderDocumentView(t) {
         <div class="flex space-x-4">
             <button onclick="finishKioskIntake()" class="touch-btn flex-1 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/25">
                 <i data-lucide="check-circle" class="w-5 h-5"></i>
-                <span>Complete Intake & Submit to Doctor</span>
+                <span>Complete Intake & Submit to OPD Queue</span>
             </button>
         </div>
     </div>
@@ -735,17 +1042,22 @@ function handleFileUpload(event) {
 
 function uploadDemoPrescription() {
     const dummyBlob = new Blob(["DEMO PRESCRIPTION CONTENT"], { type: "text/plain" });
-    uploadDocument(dummyBlob, "civil_hospital_prescription_sample.jpg", "prescription");
+    uploadDocument(dummyBlob, "civil_hospital_prescription.jpg", "prescription");
 }
 
-// 5. Complete View
+function uploadDemoLabReport() {
+    const dummyBlob = new Blob(["DEMO LAB REPORT CONTENT"], { type: "text/plain" });
+    uploadDocument(dummyBlob, "blood_biochemistry_report.jpg", "lab_report");
+}
+
+// 6. Complete View
 function renderCompleteView(t) {
     return `
     <div class="max-w-xl mx-auto w-full bg-white rounded-3xl p-8 sm:p-10 shadow-xl border border-slate-100 text-center animate-in fade-in">
         <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md shadow-blue-600/10">
             <i data-lucide="check" class="w-10 h-10"></i>
         </div>
-        <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200">OPD Queue Token Generated</span>
+        <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200">OPD Token Generated</span>
         <h2 class="text-3xl font-extrabold text-slate-900 mt-3">Intake Completed Successfully</h2>
         <p class="text-slate-500 text-sm mt-2">Your clinical history, symptoms, and digitized records are now ready for the OPD physician.</p>
 
@@ -777,33 +1089,60 @@ function renderCompleteView(t) {
     `;
 }
 
-// 6. Doctor Portal View
+// 7. Doctor Review Portal (Full Feature-Set)
 function renderDoctorPortal(t) {
     const s = state.selectedDoctorSession;
+    const filteredQueue = state.doctorQueue.filter(item => {
+        if (state.queueFilter === 'red_flag' && item.triage_level !== 'emergency_red_flag') return false;
+        if (state.queueFilter === 'priority' && item.triage_level !== 'priority') return false;
+        if (state.queueFilter === 'routine' && item.triage_level !== 'routine') return false;
+        if (state.searchQuery) {
+            const q = state.searchQuery.toLowerCase();
+            return (item.patient_name || '').toLowerCase().includes(q) || (item.abha_id || '').toLowerCase().includes(q);
+        }
+        return true;
+    });
 
     return `
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-[84vh]">
         
-        <!-- Left: Live Patient OPD Queue (4 Cols) -->
+        <!-- Left Column: Live OPD Patient Queue (4 Cols) -->
         <div class="lg:col-span-4 bg-white rounded-3xl p-5 shadow-lg border border-slate-200 flex flex-col h-full overflow-hidden">
-            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-hospital-50 text-hospital-600 flex items-center justify-center">
-                        <i data-lucide="users" class="w-4 h-4"></i>
+            
+            <!-- Queue Header & Search -->
+            <div class="pb-3 border-b border-slate-100 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-hospital-50 text-hospital-600 flex items-center justify-center">
+                            <i data-lucide="users" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">OPD Waiting Queue</h3>
+                            <p class="text-[11px] text-slate-500">${state.doctorQueue.length} Patients Triaged</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900">OPD Waiting Queue</h3>
-                        <p class="text-[11px] text-slate-500">${state.doctorQueue.length} Patients Triaged</p>
-                    </div>
+                    <button onclick="loadDoctorQueue()" class="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
                 </div>
-                <button onclick="loadDoctorQueue()" class="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                </button>
+
+                <!-- Search Input -->
+                <div class="relative">
+                    <input type="text" placeholder="Search by name or ABHA ID..." value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5"></i>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="flex space-x-1 text-[11px] font-semibold">
+                    <button onclick="state.queueFilter = 'all'; render();" class="flex-1 py-1 rounded-lg ${state.queueFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">All</button>
+                    <button onclick="state.queueFilter = 'red_flag'; render();" class="flex-1 py-1 rounded-lg ${state.queueFilter === 'red_flag' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'}">🔴 Red Flag</button>
+                    <button onclick="state.queueFilter = 'routine'; render();" class="flex-1 py-1 rounded-lg ${state.queueFilter === 'routine' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Routine</button>
+                </div>
             </div>
 
             <!-- Queue List -->
             <div class="flex-1 overflow-y-auto space-y-2.5 pt-3 pr-1">
-                ${state.doctorQueue.map(item => `
+                ${filteredQueue.map(item => `
                     <div onclick="selectDoctorSession('${item.session_id}')" class="p-3.5 rounded-2xl border transition-all cursor-pointer ${s && s.session_id === item.session_id ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}">
                         <div class="flex items-center justify-between mb-1.5">
                             <span class="font-bold text-xs text-slate-900">${item.patient_name} (${item.age}/${item.gender.charAt(0)})</span>
@@ -817,14 +1156,14 @@ function renderDoctorPortal(t) {
                         <p class="text-xs text-slate-600 line-clamp-1 font-medium">${item.chief_complaint}</p>
                         <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2 font-medium">
                             <span class="text-blue-700">${item.status.toUpperCase()}</span>
-                            <span>${item.documents_count} docs</span>
+                            <span>${item.documents_count} records</span>
                         </div>
                     </div>
-                `).join('')}
+                `).join('') || '<div class="text-center py-8 text-xs text-slate-400">No patients match this filter.</div>'}
             </div>
         </div>
 
-        <!-- Right: Structured Clinical Summary & Verification (8 Cols) -->
+        <!-- Right Column: Structured Clinical Summary & Verification (8 Cols) -->
         <div class="lg:col-span-8 bg-white rounded-3xl p-6 shadow-lg border border-slate-200 flex flex-col h-full overflow-y-auto">
             ${s ? `
                 <!-- Summary Header -->
@@ -837,10 +1176,14 @@ function renderDoctorPortal(t) {
                                 ${s.triage_level.toUpperCase()}
                             </span>
                         </div>
-                        <p class="text-xs text-slate-400 font-mono mt-0.5">ABHA: ${s.abha_id || '91-9876543210@abdm'}</p>
+                        <p class="text-xs text-slate-400 font-mono mt-0.5">ABHA ID: ${s.abha_id || '91-9876543210@abdm'}</p>
                     </div>
 
                     <div class="flex items-center space-x-2">
+                        <button onclick="openCaseSheetModal('${s.session_id}')" class="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center space-x-1.5">
+                            <i data-lucide="printer" class="w-3.5 h-3.5 text-blue-600"></i>
+                            <span>${t.printBtn}</span>
+                        </button>
                         <button onclick="openFhirModal('${s.session_id}')" class="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center space-x-1.5">
                             <i data-lucide="code" class="w-3.5 h-3.5 text-blue-600"></i>
                             <span>${t.fhirBtn}</span>
@@ -854,7 +1197,7 @@ function renderDoctorPortal(t) {
 
                 <!-- Red Flag Warning Banner -->
                 ${s.red_flag_alert ? `
-                    <div class="mt-4 p-4 rounded-2xl bg-rose-50 border-2 border-rose-500 text-rose-900 flex items-start space-x-3">
+                    <div class="mt-4 p-4 rounded-2xl bg-rose-50 border-2 border-rose-500 text-rose-900 flex items-start space-x-3 animate-pulse">
                         <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5"></i>
                         <div>
                             <h4 class="text-xs font-bold uppercase tracking-wider text-rose-700">Triage Escalation Warning</h4>
@@ -863,10 +1206,26 @@ function renderDoctorPortal(t) {
                     </div>
                 ` : ''}
 
+                <!-- Drug-Allergy Safety Conflict Banner -->
+                ${(s.safety_alerts || []).length > 0 ? `
+                    <div class="mt-4 p-4 rounded-2xl bg-red-50 border border-red-300 text-red-900 space-y-2">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="shield-alert" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-red-800">Clinical Drug Safety Alerts (${s.safety_alerts.length})</h4>
+                        </div>
+                        ${s.safety_alerts.map(a => `
+                            <div class="text-xs pl-7">
+                                <span class="font-bold text-red-700">• ${a.medication || a.drug_pair?.join(' + ')}:</span>
+                                <span class="text-red-900">${a.clinical_advice || a.alert}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+
                 <!-- Structured Sections Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                     
-                    <!-- 1. Chief Complaint & HPI -->
+                    <!-- 1. Chief Complaint & SOCRATES HPI -->
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center">
                             <i data-lucide="activity" class="w-3.5 h-3.5 mr-1 text-blue-600"></i> Chief Complaint & SOCRATES HPI
@@ -882,13 +1241,13 @@ function renderDoctorPortal(t) {
                     <!-- 2. Past Medical & Family History -->
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center">
-                            <i data-lucide="history" class="w-3.5 h-3.5 mr-1 text-blue-600"></i> Past Conditions & Family History
+                            <i data-lucide="history" class="w-3.5 h-3.5 mr-1 text-blue-600"></i> Past Conditions & Lifestyle
                         </h4>
                         <div class="space-y-1.5 text-xs text-slate-700">
                             <p>• <b>Past Illnesses:</b> ${(s.past_medical_history || []).join(', ') || 'None reported'}</p>
                             <p>• <b>Past Surgeries:</b> ${(s.past_surgical_history || []).join(', ') || 'None'}</p>
-                            <p>• <b>Family History:</b> ${(s.family_history || []).join(', ') || 'No known hereditary conditions'}</p>
-                            <p>• <b>Lifestyle / Diet:</b> ${JSON.stringify(s.personal_history || {})}</p>
+                            <p>• <b>Family History:</b> ${(s.family_history || []).join(', ') || 'No hereditary conditions'}</p>
+                            <p>• <b>Lifestyle:</b> ${JSON.stringify(s.personal_history || {})}</p>
                         </div>
                     </div>
 
@@ -901,23 +1260,23 @@ function renderDoctorPortal(t) {
                             <p class="font-semibold text-rose-700">Allergies: ${(s.drug_allergies || []).join(', ') || 'NKDA (No Known Drug Allergies)'}</p>
                             <div class="mt-2 space-y-1">
                                 ${(s.current_medications || []).map(m => `
-                                    <p class="text-[11px]">• ${m.name || m} ${m.dosage ? `(${m.dosage})` : ''}</p>
+                                    <p class="text-[11px]">• <b>${m.name || m}</b> ${m.dosage ? `(${m.dosage})` : ''} - <span class="text-slate-500">${m.frequency || ''}</span></p>
                                 `).join('')}
                             </div>
                         </div>
                     </div>
 
-                    <!-- 4. Abnormal Lab Highlights -->
+                    <!-- 4. Abnormal Lab Findings -->
                     <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-200">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-amber-800 mb-2 flex items-center">
                             <i data-lucide="alert-circle" class="w-3.5 h-3.5 mr-1 text-amber-600"></i> Abnormal Lab Findings
                         </h4>
                         <div class="space-y-1.5 text-xs text-amber-950">
                             ${(s.abnormal_lab_highlights || []).map(h => `
-                                <div class="p-1.5 bg-white/80 rounded-lg border border-amber-200">
+                                <div class="p-2 bg-white/90 rounded-xl border border-amber-200">
                                     <span class="font-bold text-rose-700">${h.parameter}: ${h.value}</span>
                                     <span class="text-[11px] text-slate-500 ml-1">(${h.ref_range || 'Ref'})</span>
-                                    <p class="text-[10px] text-amber-800">${h.clinical_note || ''}</p>
+                                    <p class="text-[10px] text-amber-900 mt-0.5">${h.clinical_note || ''}</p>
                                 </div>
                             `).join('') || '<p class="text-slate-400">No abnormal lab markers flagged.</p>'}
                         </div>
@@ -942,9 +1301,9 @@ function renderDoctorPortal(t) {
                     </div>
                 </div>
 
-                <!-- 6. Doctor Clinical Notes & Prescription Plan Input -->
+                <!-- 6. Doctor Clinical Notes & Prescription Input -->
                 <div class="mt-6 pt-4 border-t border-slate-200 space-y-3">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">Doctor Clinical Assessment Notes & Prescription Plan</label>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">Physician Clinical Assessment & Prescription Plan</label>
                     <textarea id="doctor-notes-input" rows="2" placeholder="Enter physician clinical notes, provisional diagnosis, and assessment..." class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500">${s.physician_notes || ''}</textarea>
                     <input id="doctor-plan-input" type="text" placeholder="Prescription / Advice (e.g. Tab Pantoprazole 40mg OD x 14d, repeat blood tests in 2 weeks)" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500">
                 </div>

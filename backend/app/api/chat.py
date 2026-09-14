@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -18,7 +18,7 @@ def get_initial_question(session_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
     
     lang = session.language or "en"
-    q_data = ai_service.SOCRATES_QUESTIONS["chief_complaint"][lang]
+    q_data = ai_service.SOCRATES_QUESTIONS["chief_complaint"].get(lang, ai_service.SOCRATES_QUESTIONS["chief_complaint"]["en"])
     
     return {
         "ai_reply": q_data["question"],
@@ -47,19 +47,21 @@ def send_chat_turn(session_id: str, payload: ChatMessageRequest, db: Session = D
 
     current_socrates = dict(history_record.socrates_hpi or {})
     current_step = payload.step or "chief_complaint"
+    now_iso = datetime.now(timezone.utc).isoformat()
     
     # Process turn with AI & Red-Flag Service
     result = ai_service.process_turn(
         current_step=current_step,
         user_message=payload.message,
         language=session.language or "en",
-        extracted_socrates=current_socrates
+        extracted_socrates=current_socrates,
+        body_location=payload.body_location
     )
 
     # Save to chat history
     chat_list = list(session.chat_history or [])
-    chat_list.append({"sender": "user", "message": payload.message, "timestamp": datetime.utcnow().isoformat()})
-    chat_list.append({"sender": "ai", "message": result["ai_reply"], "timestamp": datetime.utcnow().isoformat()})
+    chat_list.append({"sender": "user", "message": payload.message, "timestamp": now_iso})
+    chat_list.append({"sender": "ai", "message": result["ai_reply"], "timestamp": now_iso})
     session.chat_history = chat_list
 
     # If Red Flag detected, escalate session immediately
@@ -67,7 +69,7 @@ def send_chat_turn(session_id: str, payload: ChatMessageRequest, db: Session = D
         session.status = SessionStatus.TRIAGED_RED_FLAG.value
         session.triage_level = TriageLevel.EMERGENCY_RED_FLAG.value
         session.red_flag_detected = result["red_flag_alert_title"]
-        session.red_flag_timestamp = datetime.utcnow()
+        session.red_flag_timestamp = datetime.now(timezone.utc)
         session.red_flag_action_taken = result["red_flag_instructions"]
     else:
         # Update chief complaint and SOCRATES data

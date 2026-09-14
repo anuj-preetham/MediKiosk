@@ -57,3 +57,12 @@ uploads/
 *.tmp
 *.db
 *.sqlite3
+
+# Project Research & Presentation Documents (local only)
+*.pdf
+*.docx
+*.doc
+*.pptx
+*.ppt
+*.xlsx
+*.xls

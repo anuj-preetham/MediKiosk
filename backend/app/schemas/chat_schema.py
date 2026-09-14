@@ -5,6 +5,7 @@ class ChatMessageRequest(BaseModel):
     message: str
     mode: str = "general" # 'general' | 'socrates' | 'lifestyle'
     step: Optional[str] = None # 'chief_complaint' | 'site' | 'onset' | 'character' | 'radiation' | 'associated' | 'timing' | 'exacerbating' | 'severity'
+    body_location: Optional[str] = None
 
 class QuickOption(BaseModel):
     label: str
