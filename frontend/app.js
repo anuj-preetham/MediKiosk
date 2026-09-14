@@ -1,6 +1,7 @@
 /**
  * MediKiosk Frontend Application (Production-Grade Final Platform)
  * Smart OPD Clinical History & Medical Document Intelligence Platform (SIH26047)
+ * Built with ABDM M1/M2/M3 Scan & Share, FHIR R4, and Hospital HIS Interoperability
  */
 
 const API_BASE = '/api';
@@ -27,7 +28,6 @@ const state = {
     queueFilter: 'all', // 'all' | 'red_flag' | 'priority' | 'routine'
     searchQuery: '',
     selectedDoctorSession: null,
-    doctorViewTab: 'summary', // 'summary' | 'split_document' | 'timeline'
     isRecording: false
 };
 
@@ -39,7 +39,7 @@ const i18n = {
         consentTitle: "Patient Identity & ABDM Consent",
         consentDesc: "By continuing, you consent to secure recording of your clinical history, symptoms, and prior medical records for your OPD consultation under the Digital Personal Data Protection (DPDP) Act 2023.",
         startBtn: "Start Touch / Voice Intake",
-        quickStart: "Walk-in Patient (Quick Start)",
+        scanShareBtn: "Scan & Share with ABHA QR (M1 Counter)",
         bodymapTitle: "Select Pain / Discomfort Area",
         bodymapSubtitle: "Touch the body map where you feel pain or discomfort",
         skipBodymap: "Skip Body Map & Speak Directly",
@@ -70,6 +70,7 @@ const i18n = {
         verifyBtn: "Approve & Submit to ABDM / HIS",
         fhirBtn: "View ABDM FHIR JSON",
         printBtn: "Print OPD Case Sheet",
+        hisPushBtn: "Push to Hospital HIS",
         triageRoutine: "Routine",
         triagePriority: "Priority",
         triageEmergency: "Emergency Red Flag"
@@ -80,7 +81,7 @@ const i18n = {
         consentTitle: "रोगी पहचान एवं डिजिटल सहमति (DPDP 2023)",
         consentDesc: "आगे बढ़कर आप अपने स्वास्थ्य इतिहास, वर्तमान लक्षणों और पुराने पर्चों को डॉक्टर परामर्श हेतु सुरक्षित रूप से रिकॉर्ड करने की सहमति देते हैं।",
         startBtn: "बोलकर या छूकर शुरू करें",
-        quickStart: "सीधे शुरू करें (त्वरित प्रवेश)",
+        scanShareBtn: "आभा क्यूआर स्कैन व शेयर (Scan & Share)",
         bodymapTitle: "दर्द या तकलीफ का स्थान चुनें",
         bodymapSubtitle: "शरीर के जिस हिस्से में दर्द या समस्या है, उसे छूकर चुनें",
         skipBodymap: "बॉडी मैप छोड़ें और सीधे बोलें",
@@ -111,6 +112,7 @@ const i18n = {
         verifyBtn: "सत्यापित करें एवं ABDM में भेजें",
         fhirBtn: "ABDM FHIR JSON देखें",
         printBtn: "ओपीडी केस शीट प्रिंट करें",
+        hisPushBtn: "अस्पताल HIS में भेजें",
         triageRoutine: "सामान्य",
         triagePriority: "प्राथमिकता",
         triageEmergency: "आपातकालीन रेड फ्लैग"
@@ -121,6 +123,7 @@ const i18n = {
         consentTitle: "রোগীর সম্মতি ও ডেটা সুরক্ষা (DPDP 2023)",
         consentDesc: "এগিয়ে গিয়ে আপনি আপনার চিকিৎসা ইতিহাস এবং পুরোনো প্রেসক্রিপশন নিরাপদে রেকর্ড করার সম্মতি দিচ্ছেন।",
         startBtn: "স্পর্শ বা ভয়েস দিয়ে শুরু করুন",
+        scanShareBtn: "আভা স্ক্যান ও শেয়ার (Scan & Share)",
         bodymapTitle: "ব্যথার স্থান নির্বাচন করুন",
         bodymapSubtitle: "শরীরের যে অংশে ব্যথা আছে সেখানে স্পর্শ করুন",
         skipBodymap: "সরাসরি কথা বলুন",
@@ -150,7 +153,8 @@ const i18n = {
         summaryTitle: "চিকিৎসক সারাংশ",
         verifyBtn: "অনুমোদন করুন ও জমা দিন",
         fhirBtn: "FHIR JSON দেখুন",
-        printBtn: "কেস শীট প্রিন্ট করুন"
+        printBtn: "কেস শীট প্রিন্ট করুন",
+        hisPushBtn: "হাসপাতাল HIS সিঙ্ক"
     },
     ta: {
         welcomeTitle: "மெடிகியோஸ்க்கிற்கு வரவேற்கிறோம்",
@@ -158,6 +162,7 @@ const i18n = {
         consentTitle: "நோயாளி ஒப்புதல் (DPDP 2023)",
         consentDesc: "தங்கள் மருத்துவ விவரங்களை பதிவு செய்ய ஒப்புதல் அளிக்கிறீர்கள்.",
         startBtn: "தொடங்கவும்",
+        scanShareBtn: "ABHA ஸ்கேன் மற்றும் பகிர்வு (Scan & Share)",
         bodymapTitle: "வலி உள்ள இடத்தை தேர்ந்தெடுக்கவும்",
         bodymapSubtitle: "உடலில் வலி உள்ள பகுதியை தொடவும்",
         skipBodymap: "நேரடியாக பேசவும்",
@@ -187,7 +192,8 @@ const i18n = {
         summaryTitle: "மருத்துவர் சுருக்கம்",
         verifyBtn: "சரிபார்த்து சமர்ப்பிக்கவும்",
         fhirBtn: "FHIR JSON காண்க",
-        printBtn: "அச்சிடுக"
+        printBtn: "அச்சிடுக",
+        hisPushBtn: "HIS இல் சமர்ப்பிக்கவும்"
     },
     te: {
         welcomeTitle: "మెడికియోస్క్‌కు స్వాగతం",
@@ -195,6 +201,7 @@ const i18n = {
         consentTitle: "రోగి సమ్మతి (DPDP 2023)",
         consentDesc: "మీ ఆరోగ్య వివరాలు నమోదు చేయడానికి అనుమతిస్తున్నారు.",
         startBtn: "ప్రారంభించండి",
+        scanShareBtn: "ABHA స్కాన్ & షేర్ (Scan & Share)",
         bodymapTitle: "నొప్పి ఉన్న ప్రదేశాన్ని ఎంచుకోండి",
         bodymapSubtitle: "నొప్పి ఉన్న శరీర భాగాన్ని తాకండి",
         skipBodymap: "నేరుగా మాట్లాడండి",
@@ -224,7 +231,8 @@ const i18n = {
         summaryTitle: "వైద్యుల సారాంశం",
         verifyBtn: "ఆమోదించి సమర్పించండి",
         fhirBtn: "FHIR JSON చూడండి",
-        printBtn: "ప్రింట్ చేయండి"
+        printBtn: "ప్రింట్ చేయండి",
+        hisPushBtn: "ఆసుపత్రి HIS కి పంపండి"
     },
     mr: {
         welcomeTitle: "मेडीकियोस्क मध्ये आपले स्वागत आहे",
@@ -232,6 +240,7 @@ const i18n = {
         consentTitle: "रुग्ण संमती व डेटा सुरक्षा (DPDP 2023)",
         consentDesc: "आपला आरोग्य इतिहास आणि जुनी कागदपत्रे सुरक्षितपणे नोंदवण्यास आपण संमती देत आहात.",
         startBtn: "सुरू करा",
+        scanShareBtn: "आभा क्यूआर स्कॅन आणि शेअर (Scan & Share)",
         bodymapTitle: "त्रास किंवा वेदनेचा भाग निवडा",
         bodymapSubtitle: "वेदना असलेल्या शरीराच्या भागावर स्पर्श करा",
         skipBodymap: "थेट बोला",
@@ -261,7 +270,8 @@ const i18n = {
         summaryTitle: "डॉक्टर सारांश",
         verifyBtn: "मंजूर करा व पाठवा",
         fhirBtn: "FHIR JSON पहा",
-        printBtn: "केस शीट प्रिंट करा"
+        printBtn: "केस शीट प्रिंट करा",
+        hisPushBtn: "हॉस्पिटल HIS मध्ये पाठवा"
     }
 };
 
@@ -381,6 +391,50 @@ function toggleAudioGuidance() {
     } else {
         icon.className = "w-4 h-4 text-slate-400";
         if (window.speechSynthesis) window.speechSynthesis.cancel();
+    }
+}
+
+// Scan & Share Modal Functions
+function openScanShareModal() {
+    document.getElementById('scan-share-modal').classList.remove('hidden');
+}
+
+function closeScanShareModal() {
+    document.getElementById('scan-share-modal').classList.add('hidden');
+}
+
+async function simulateScanAndShareApp() {
+    closeScanShareModal();
+    try {
+        const res = await fetch(`${API_BASE}/abdm/scan-and-share/process`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                abha_number: "91-9876-5432-1098",
+                abha_address: "rameshwar.sharma@abdm",
+                name: "Rameshwar Sharma",
+                gender: "Male",
+                year_of_birth: 1968,
+                phone_number: "+91 98765 43210"
+            })
+        });
+        const data = await res.json();
+        await startSession(data.full_name, data.age, data.gender, data.phone_number);
+    } catch (err) {
+        console.error("Scan & share failed:", err);
+    }
+}
+
+// Hospital HIS Push Integration
+async function pushToHospitalHis(sessionId) {
+    const targetId = sessionId || state.selectedDoctorSession?.session_id;
+    if (!targetId) return;
+    try {
+        const res = await fetch(`${API_BASE}/abdm/his/push/${targetId}`, { method: 'POST' });
+        const data = await res.json();
+        alert(`🏥 Hospital HIS Synchronized Successfully!\n\n• Transaction ID: ${data.his_transaction_id}\n• OPD Case No: ${data.hospital_opd_case_number}\n• FHIR Bundle Status: Validated & Pushed to EMR Core`);
+    } catch (err) {
+        console.error("HIS push failed:", err);
     }
 }
 
@@ -668,7 +722,7 @@ function render() {
     lucide.createIcons();
 }
 
-// 1. Consent View
+// 1. Consent View (With ABDM Scan & Share)
 function renderConsentView(t) {
     return `
     <div class="max-w-2xl mx-auto w-full bg-white rounded-3xl p-8 sm:p-10 shadow-xl border border-slate-100 animate-in fade-in duration-300">
@@ -696,13 +750,22 @@ function renderConsentView(t) {
             </div>
         </div>
 
-        <div class="space-y-4">
-            <button onclick="startSession()" class="touch-btn w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white font-bold text-lg flex items-center justify-center space-x-3 shadow-lg shadow-blue-600/25 transition-all">
-                <i data-lucide="sparkles" class="w-6 h-6"></i>
+        <div class="space-y-3">
+            <!-- 1. Scan & Share -->
+            <button onclick="openScanShareModal()" class="touch-btn w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base flex items-center justify-center space-x-3 shadow-lg shadow-blue-600/25 transition-all">
+                <i data-lucide="qr-code" class="w-5 h-5"></i>
+                <span>${t.scanShareBtn}</span>
+            </button>
+
+            <!-- 2. Manual Start -->
+            <button onclick="startSession()" class="touch-btn w-full py-3.5 px-6 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm flex items-center justify-center space-x-2 transition-all">
+                <i data-lucide="sparkles" class="w-4 h-4 text-blue-600"></i>
                 <span>${t.startBtn}</span>
             </button>
-            <button onclick="startSession('Sunita Devi', 62, 'Female', '9123456789')" class="touch-btn w-full py-3 px-6 rounded-2xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 font-semibold text-sm flex items-center justify-center space-x-2 transition-all">
-                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+
+            <!-- 3. Emergency Demo Case -->
+            <button onclick="startSession('Sunita Devi', 62, 'Female', '9123456789')" class="touch-btn w-full py-2.5 px-6 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-all">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
                 <span>Demo Emergency Case (Acute Chest Pain Red Flag)</span>
             </button>
         </div>
@@ -1089,7 +1152,7 @@ function renderCompleteView(t) {
     `;
 }
 
-// 7. Doctor Review Portal (Full Feature-Set)
+// 7. Doctor Review Portal (Full Feature-Set with Hospital HIS Push)
 function renderDoctorPortal(t) {
     const s = state.selectedDoctorSession;
     const filteredQueue = state.doctorQueue.filter(item => {
@@ -1180,6 +1243,10 @@ function renderDoctorPortal(t) {
                     </div>
 
                     <div class="flex items-center space-x-2">
+                        <button onclick="pushToHospitalHis('${s.session_id}')" class="px-3 py-2 rounded-xl border border-teal-300 text-teal-800 bg-teal-50 hover:bg-teal-100 text-xs font-bold flex items-center space-x-1.5 shadow-sm">
+                            <i data-lucide="upload" class="w-3.5 h-3.5 text-teal-600"></i>
+                            <span>${t.hisPushBtn}</span>
+                        </button>
                         <button onclick="openCaseSheetModal('${s.session_id}')" class="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center space-x-1.5">
                             <i data-lucide="printer" class="w-3.5 h-3.5 text-blue-600"></i>
                             <span>${t.printBtn}</span>

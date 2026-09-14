@@ -126,6 +126,50 @@ def test_printable_opd_casesheet_html():
     assert "text/html" in res_sheet.headers["content-type"]
     assert "OPD Case Sheet" in res_sheet.text
 
+def test_abdm_scan_and_share_qr_and_process():
+    # 1. Get QR Code Payload
+    res_qr = client.get("/api/abdm/scan-and-share/qr")
+    assert res_qr.status_code == 200
+    data_qr = res_qr.json()
+    assert "abdm://scan-share" in data_qr["qr_data"]
+    assert data_qr["counter_id"] == "OPD-COUNTER-01"
+
+    # 2. Process Scan & Share Profile Handshake
+    res_process = client.post("/api/abdm/scan-and-share/process", json={
+        "name": "Rameshwar Sharma",
+        "gender": "Male",
+        "year_of_birth": 1968,
+        "phone_number": "9876543210"
+    })
+    assert res_process.status_code == 200
+    data_proc = res_process.json()
+    assert data_proc["status"] == "SUCCESS"
+    assert "OPD-TKN-" in data_proc["token_number"]
+    assert data_proc["full_name"] == "Rameshwar Sharma"
+
+def test_abdm_otp_flow():
+    # 1. Send OTP
+    res_send = client.post("/api/abdm/abha/send-otp", json={"abha_identifier": "9876543210"})
+    assert res_send.status_code == 200
+    txn_id = res_send.json()["transaction_id"]
+
+    # 2. Verify OTP
+    res_verify = client.post("/api/abdm/abha/verify-otp", json={"transaction_id": txn_id, "otp": "123456"})
+    assert res_verify.status_code == 200
+    assert res_verify.json()["status"] == "VERIFIED"
+    assert "vikram.singh@abdm" in res_verify.json()["abha_address"]
+
+def test_hospital_his_push():
+    res_queue = client.get("/api/doctor/queue")
+    session_id = res_queue.json()[0]["session_id"]
+
+    res_his = client.post(f"/api/abdm/his/push/{session_id}")
+    assert res_his.status_code == 200
+    data = res_his.json()
+    assert data["status"] == "SYNCED_TO_HIS"
+    assert "HIS-TX-" in data["his_transaction_id"]
+    assert "OPD-2026-" in data["hospital_opd_case_number"]
+
 def test_fhir_bundle_export():
     res = client.get("/api/doctor/queue")
     first_session_id = res.json()[0]["session_id"]
